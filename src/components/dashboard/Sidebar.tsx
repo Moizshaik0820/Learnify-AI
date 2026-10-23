@@ -16,8 +16,9 @@ import {
   RotateCcw,
   Network,
   FileText,
-  Settings,
-  X
+  Volume2,
+  VolumeX,
+  X,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -27,6 +28,8 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const pathname = usePathname();
   const language = useStore((s) => s.language);
+  const soundEnabled = useStore((s) => s.soundEnabled);
+  const toggleSound = useStore((s) => s.toggleSound);
   const t = translations[language];
 
   const navItems = [
@@ -37,7 +40,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
     { label: t.nav.revision, href: '/revision', icon: RotateCcw },
     { label: t.nav.mindmap, href: '/mind-map', icon: Network },
     { label: t.nav.study, href: '/study-material', icon: FileText },
-    { label: t.nav.settings, href: '/settings', icon: Settings },
   ];
 
   return (
@@ -90,7 +92,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
       </div>
 
       {/* Bottom Section */}
-      <div className="space-y-4 pt-6">
+      <div className="space-y-3 pt-6 border-t border-slate-100">
+        {/* Sound Effects & Celebration Chimes Control */}
+        <button
+          onClick={toggleSound}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/70 text-xs transition group"
+          title="Play audio cues on level completion and confetti"
+        >
+          <div className="flex items-center space-x-2">
+            {soundEnabled ? (
+              <Volume2 className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform" />
+            ) : (
+              <VolumeX className="w-4 h-4 text-slate-400" />
+            )}
+            <span className="font-semibold text-slate-700">Sound Effects</span>
+          </div>
+          <span
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              soundEnabled
+                ? 'bg-purple-100 text-purple-700'
+                : 'bg-slate-200 text-slate-500'
+            }`}
+          >
+            {soundEnabled ? 'Chimes ON' : 'OFF'}
+          </span>
+        </button>
+
         {/* Language Selector */}
         <LanguageToggle />
 

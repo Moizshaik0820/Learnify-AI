@@ -15,7 +15,9 @@ export const ProgressStatsCard: React.FC = () => {
   const language = useStore((s) => s.language);
   const t = translations[language];
 
-  const xpPercent = Math.min(Math.round((totalXp / xpToNextLevel) * 100), 100);
+  const xpPercent = xpToNextLevel > 0
+    ? Math.min(Math.round((totalXp / xpToNextLevel) * 100), 100)
+    : 0;
 
   return (
     <div id="progress-panel" className="bg-white rounded-2xl border border-[#E6EAF2] p-5 shadow-sm space-y-4">
@@ -53,7 +55,7 @@ export const ProgressStatsCard: React.FC = () => {
         {/* Builder Title & XP Bar */}
         <div className="flex-1 space-y-1.5">
           <h4 className="font-bold text-sm sm:text-base text-[#141C38]">
-            {t.stats.noviceBuilder}
+            {learnerLevel === 0 ? 'Novice Builder (Starting Level)' : t.stats.noviceBuilder}
           </h4>
           <div className="text-xs text-slate-500 font-medium">
             <span>{totalXp}</span> / <span>{xpToNextLevel}</span> {t.stats.xp}
@@ -89,7 +91,7 @@ export const ProgressStatsCard: React.FC = () => {
             <CheckCircle2 className="w-3.5 h-3.5" />
           </div>
           <span className="text-sm font-extrabold text-[#141C38] leading-none">
-            {Math.max(completedLevels.length, 12)}
+            {completedLevels.length}
           </span>
           <span className="text-[10px] text-slate-400 font-medium leading-tight line-clamp-1">
             {t.stats.levelsCompleted}

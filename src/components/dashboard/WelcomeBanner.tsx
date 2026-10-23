@@ -3,12 +3,14 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { translations } from '@/data/translations';
 
 export const WelcomeBanner: React.FC = () => {
   const language = useStore((s) => s.language);
+  const user = useStore((s) => s.user);
+  const userProfile = useStore((s) => s.userProfile);
   const t = translations[language];
 
   // Determine the next level to continue learning
@@ -16,17 +18,29 @@ export const WelcomeBanner: React.FC = () => {
   const world1Lvl = currentLevelByWorld[1] || 1;
   const nextLevelUrl = `/worlds/1/${world1Lvl}`;
 
+  const displayName =
+    userProfile?.username ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split('@')[0] ||
+    null;
+
   return (
     <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden bg-gradient-to-r from-[#D7E8FD] via-[#E2EAFD] to-[#EDE7FF] border border-blue-100/80 shadow-sm p-6 sm:p-7 flex flex-col md:flex-row items-center justify-between gap-4">
       {/* Left Content Area */}
       <div className="relative z-10 max-w-sm sm:max-w-md space-y-2.5 text-left shrink-0">
         <span className="text-xs sm:text-sm font-semibold text-slate-600 block">
-          {t.welcome.greeting}
+          {displayName ? `${t.welcome.greeting}, ${displayName}!` : t.welcome.greeting}
         </span>
 
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#141C38] leading-tight">
-            Learnify AI
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#141C38] leading-tight flex items-center gap-2">
+            <span>Learnify AI</span>
+            {user && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700">
+                <Sparkles className="w-3 h-3 mr-1" />
+                RLS Connected
+              </span>
+            )}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-purple-700/90 mt-0.5">
             {t.welcome.tagline}

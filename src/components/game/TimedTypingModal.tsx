@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Timer, Zap, CheckCircle2, RotateCcw, AlertCircle, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { soundEffects } from '@/lib/soundEffects';
 
 interface TimedTypingModalProps {
   isOpen: boolean;
@@ -89,6 +90,7 @@ export const TimedTypingModal: React.FC<TimedTypingModalProps> = ({
           // Completed all lines!
           try {
             confetti({ particleCount: 60, spread: 50, origin: { y: 0.6 } });
+            soundEffects.playCelebrationChime();
           } catch (_) {}
 
           const accuracy = Math.round(

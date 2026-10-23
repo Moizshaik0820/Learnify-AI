@@ -5,6 +5,7 @@ import { LevelQuizQuestion } from '@/types';
 import { useStore } from '@/lib/store';
 import { HelpCircle, CheckCircle2, XCircle, Award, ArrowRight, RotateCcw } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { soundEffects } from '@/lib/soundEffects';
 
 interface QuizModalProps {
   isOpen: boolean;
@@ -48,6 +49,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({
     const isCorrect = index === currentQ.correctIndex;
     if (isCorrect) {
       setScore((s) => s + 1);
+      soundEffects.playSuccessPing();
     } else {
       setWrongConcepts((prev) => [...prev, currentQ.conceptTag]);
     }
@@ -58,7 +60,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({
       setIsFinished(true);
       const finalScore = score + (selectedOption === currentQ.correctIndex ? 0 : 0);
       
-      // Save to store
+      // Save to store & sync to Supabase
       recordQuizAttempt({
         id: `quiz-w${worldId}-l${levelId}-${Date.now()}`,
         worldId,
@@ -74,6 +76,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({
       if (finalScore >= Math.ceil(questions.length * 0.7)) {
         try {
           confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+          soundEffects.playCelebrationChime();
         } catch (_) {}
       }
     } else {

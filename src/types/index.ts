@@ -91,5 +91,13 @@ export interface UserProgressState {
   weakPoints: WeakPoint[];
   language: Language;
   soundEnabled: boolean;
-  demoMode: boolean;
+}
+
+export interface AuthUserProfile {
+  id: string;
+  email: string | null;
+  username: string;
+  learnerLevel: number;
+  totalXp: number;
+  quizzesTaken: number;
 }

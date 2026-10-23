@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { TopBar } from '@/components/dashboard/TopBar';
 import { useStore } from '@/lib/store';
 import { translations } from '@/data/translations';
+import { supabase } from '@/lib/supabaseClient';
+import { soundEffects } from '@/lib/soundEffects';
 import {
   ChevronRight,
   Network,
@@ -15,6 +17,7 @@ import {
   Sparkles,
   ArrowRight,
   RotateCcw,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface MindNode {
@@ -33,14 +36,16 @@ export default function MindMapPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<MindNode | null>(null);
 
+  const user = useStore((s) => s.user);
   const language = useStore((s) => s.language);
   const completedLevels = useStore((s) => s.completedLevels);
+  const unlockedWorlds = useStore((s) => s.unlockedWorlds);
   const weakPoints = useStore((s) => s.weakPoints);
   const markWeakPointPracticed = useStore((s) => s.markWeakPointPracticed);
   const t = translations[language];
 
-  // Concept nodes data
-  const conceptNodes: MindNode[] = [
+  // Raw concept definition list
+  const baseConcepts = [
     {
       id: 'node-selectors',
       name: 'CSS Selectors & Cascade',
@@ -48,7 +53,7 @@ export default function MindMapPage() {
       worldId: 1,
       levelId: 1,
       category: '1. Basics and Syntax',
-      status: weakPoints.some((w) => w.concept.includes('Selector')) ? 'weak' : 'mastered',
+      conceptKeyword: 'Selector',
       explanation: 'Element, class, and ID selectors choose which HTML components receive styles.',
       explanationHinglish: 'Element, class, aur ID selectors tay karte hain ki kis element par design lagega.',
     },
@@ -59,7 +64,7 @@ export default function MindMapPage() {
       worldId: 1,
       levelId: 18,
       category: '1. Basics and Syntax',
-      status: 'mastered',
+      conceptKeyword: 'Box Model',
       explanation: 'Content, padding, border, and margin form the physical geometry of all castle chambers.',
       explanationHinglish: 'Content, padding, border, aur margin milkar har element ka naap banate hain.',
     },
@@ -70,7 +75,7 @@ export default function MindMapPage() {
       worldId: 2,
       levelId: 1,
       category: '2. Styling and Typography',
-      status: 'mastered',
+      conceptKeyword: 'Typography',
       explanation: 'Font-family, font-size, line-height, and font-weight craft readable royal manuscripts.',
       explanationHinglish: 'Font family, size aur weight se text ko aakarshit banaya jata hai.',
     },
@@ -81,7 +86,7 @@ export default function MindMapPage() {
       worldId: 2,
       levelId: 15,
       category: '2. Styling and Typography',
-      status: 'mastered',
+      conceptKeyword: 'Gradient',
       explanation: 'Seamless color transitions across castle ramparts without loading heavy image assets.',
       explanationHinglish: 'Do ya zyada rangon ka smooth mel bina kisi heavy image ke.',
     },
@@ -92,7 +97,7 @@ export default function MindMapPage() {
       worldId: 3,
       levelId: 12,
       category: '3. Layout and Positioning',
-      status: weakPoints.some((w) => w.concept.includes('Flexbox')) ? 'weak' : 'mastered',
+      conceptKeyword: 'Flexbox',
       explanation: 'One-dimensional distribution along main and cross axes with justify-content and align-items.',
       explanationHinglish: 'Items ko row ya column mein barabar baantna aur align karna.',
     },
@@ -103,7 +108,7 @@ export default function MindMapPage() {
       worldId: 3,
       levelId: 20,
       category: '3. Layout and Positioning',
-      status: 'unlocked',
+      conceptKeyword: 'Grid',
       explanation: 'Two-dimensional grid tracks for fortress citadel architectures.',
       explanationHinglish: 'Do dishaon (rows aur columns) mein layout tay karna.',
     },
@@ -114,7 +119,7 @@ export default function MindMapPage() {
       worldId: 4,
       levelId: 6,
       category: '4. Responsive Design',
-      status: weakPoints.some((w) => w.concept.includes('Media Queries')) ? 'weak' : 'unlocked',
+      conceptKeyword: 'Media Queries',
       explanation: 'Fluid breakpoints that adapt the castle from mobile smartphones to ultra-wide displays.',
       explanationHinglish: 'Har screen size par website ko sahi dikhana.',
     },
@@ -125,7 +130,7 @@ export default function MindMapPage() {
       worldId: 4,
       levelId: 3,
       category: '4. Responsive Design',
-      status: 'unlocked',
+      conceptKeyword: 'clamp',
       explanation: 'Locks values between min and max bounds based on viewport width.',
       explanationHinglish: 'Minimum aur maximum limit ke beech size ko badalna.',
     },
@@ -136,7 +141,7 @@ export default function MindMapPage() {
       worldId: 5,
       levelId: 1,
       category: '5. Visual Effects',
-      status: 'locked',
+      conceptKeyword: 'Shadow',
       explanation: 'Casts multi-layer depth shadows and neon magical crystal halos.',
       explanationHinglish: 'Element ke peeche parchhai aur chamakdaar glow banana.',
     },
@@ -147,7 +152,7 @@ export default function MindMapPage() {
       worldId: 5,
       levelId: 9,
       category: '5. Visual Effects',
-      status: 'locked',
+      conceptKeyword: 'Transform',
       explanation: 'Translate, rotate, and scale castle drawbridges without disrupting document flow.',
       explanationHinglish: 'Elements ko ghumana, bada karna aur shift karna.',
     },
@@ -158,7 +163,7 @@ export default function MindMapPage() {
       worldId: 6,
       levelId: 1,
       category: '6. Motion',
-      status: 'locked',
+      conceptKeyword: 'Transition',
       explanation: 'Smoothly interpolates state changes over specified durations.',
       explanationHinglish: 'Kissi bhi badlav ko smooth banana.',
     },
@@ -169,11 +174,77 @@ export default function MindMapPage() {
       worldId: 6,
       levelId: 5,
       category: '6. Motion',
-      status: 'locked',
+      conceptKeyword: 'keyframes',
       explanation: 'Continuous living motion cycles for banners, torches, and moat waters.',
       explanationHinglish: 'Lagatar chalne wali jaadui animations banana.',
     },
   ];
+
+  // Strictly compute node status from authenticated user's actual progress
+  const conceptNodes: MindNode[] = baseConcepts.map((item) => {
+    const isWeak = weakPoints.some(
+      (w) =>
+        (w.concept.toLowerCase().includes(item.conceptKeyword.toLowerCase()) ||
+          item.name.toLowerCase().includes(w.concept.toLowerCase())) &&
+        w.status === 'Needs Practice'
+    );
+
+    const levelGlobalId = `world-${item.worldId}-level-${item.levelId}`;
+    const isCompleted = completedLevels.includes(levelGlobalId);
+
+    const isWorldUnlocked =
+      item.worldId === 1 || unlockedWorlds.includes(item.worldId);
+
+    let status: 'mastered' | 'weak' | 'unlocked' | 'locked' = 'locked';
+
+    if (isWeak) {
+      status = 'weak';
+    } else if (isCompleted) {
+      status = 'mastered';
+    } else if (isWorldUnlocked) {
+      status = 'unlocked';
+    } else {
+      status = 'locked';
+    }
+
+    return {
+      id: item.id,
+      name: item.name,
+      nameHinglish: item.nameHinglish,
+      worldId: item.worldId,
+      levelId: item.levelId,
+      category: item.category,
+      status,
+      explanation: item.explanation,
+      explanationHinglish: item.explanationHinglish,
+    };
+  });
+
+  const masteredCount = conceptNodes.filter((n) => n.status === 'mastered').length;
+  const weakCount = conceptNodes.filter((n) => n.status === 'weak').length;
+  const inProgressCount = conceptNodes.filter((n) => n.status === 'unlocked').length;
+
+  // Sync summary to Supabase mind_map_states if user is authenticated
+  useEffect(() => {
+    if (user?.id) {
+      const syncMindMap = async () => {
+        try {
+          await supabase.from('mind_map_states').upsert(
+            {
+              user_id: user.id,
+              title: 'Learnify AI: CSS Castle Architecture',
+              mastered_count: masteredCount,
+              weak_count: weakCount,
+              total_concepts: conceptNodes.length,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id' }
+          );
+        } catch (_) {}
+      };
+      syncMindMap();
+    }
+  }, [user?.id, masteredCount, weakCount, conceptNodes.length]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFD] flex">
@@ -204,13 +275,31 @@ export default function MindMapPage() {
             <span className="text-slate-800 font-semibold">{t.nav.mindmap}</span>
           </div>
 
-          <div>
-            <h1 className="text-2xl font-black text-[#141C38] tracking-tight">
-              Interactive CSS Mind Map
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Visualize your conceptual mastery across all CSS domains. Click any node to review weak points or launch revision missions.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-black text-[#141C38] tracking-tight">
+                Interactive CSS Mind Map
+              </h1>
+              <p className="text-sm text-slate-500 mt-1">
+                Visualizing authenticated progress from your Supabase PostgreSQL cluster.
+              </p>
+            </div>
+
+            {/* Quick Metrics Badges */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center space-x-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>{masteredCount} / {conceptNodes.length} Mastered</span>
+              </span>
+              <span className="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center space-x-1.5">
+                <AlertTriangle className="w-4 h-4 text-rose-600" />
+                <span>{weakCount} Needs Practice</span>
+              </span>
+              <span className="px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-800 text-xs font-bold flex items-center space-x-1.5">
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                <span>{inProgressCount} In Progress</span>
+              </span>
+            </div>
           </div>
 
           {/* Interactive Mind Map Visual Container */}
@@ -220,15 +309,15 @@ export default function MindMapPage() {
             <div className="flex flex-wrap items-center gap-4 text-xs">
               <div className="flex items-center space-x-1.5">
                 <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
-                <span className="text-slate-600 font-medium">Mastered</span>
+                <span className="text-slate-600 font-medium">Mastered ({masteredCount})</span>
               </div>
               <div className="flex items-center space-x-1.5">
                 <span className="w-3 h-3 rounded-full bg-rose-500 animate-pulse"></span>
-                <span className="text-slate-600 font-medium">Needs Practice (Weak Point)</span>
+                <span className="text-slate-600 font-medium">Needs Practice ({weakCount})</span>
               </div>
               <div className="flex items-center space-x-1.5">
                 <span className="w-3 h-3 rounded-full bg-purple-500"></span>
-                <span className="text-slate-600 font-medium">Unlocked / In Progress</span>
+                <span className="text-slate-600 font-medium">Unlocked / In Progress ({inProgressCount})</span>
               </div>
               <div className="flex items-center space-x-1.5">
                 <span className="w-3 h-3 rounded-full bg-slate-300"></span>
@@ -365,9 +454,10 @@ export default function MindMapPage() {
                 <button
                   onClick={() => {
                     markWeakPointPracticed(selectedNode.name);
+                    soundEffects.playSuccessPing();
                     setSelectedNode(null);
                   }}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
                 >
                   Mark as Mastered
                 </button>

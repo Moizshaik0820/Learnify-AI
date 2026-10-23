@@ -1,10 +1,21 @@
 import { create } from 'zustand';
-import { Language, QuizAttempt, WeakPoint } from '@/types';
+import { User, Session } from '@supabase/supabase-js';
+import { Language, QuizAttempt, WeakPoint, AuthUserProfile } from '@/types';
+import { supabase } from './supabaseClient';
+import { soundEffects } from './soundEffects';
 
 interface StoreState {
-  language: Language;
-  setLanguage: (lang: Language) => void;
+  // Auth state
+  user: User | null;
+  session: Session | null;
+  userProfile: AuthUserProfile | null;
+  authLoading: boolean;
+  authError: string | null;
+  authSuccessMessage: string | null;
+  isAuthModalOpen: boolean;
 
+  // Learner state
+  language: Language;
   learnerLevel: number;
   totalXp: number;
   xpToNextLevel: number;
@@ -16,265 +27,571 @@ interface StoreState {
   quizHistory: QuizAttempt[];
   weakPoints: WeakPoint[];
 
-  demoMode: boolean;
+  // Sound Effects & Celebration Chimes
   soundEnabled: boolean;
 
-  // Actions
-  completeLevel: (worldId: number, levelId: number, xpEarned: number) => void;
-  recordQuizAttempt: (attempt: QuizAttempt) => void;
-  addWeakPoint: (concept: string, topic: string, worldId: number, levelId: number) => void;
-  markWeakPointPracticed: (concept: string) => void;
+  // Auth Actions
+  openAuthModal: () => void;
+  closeAuthModal: () => void;
+  setAuthError: (error: string | null) => void;
+  setAuthSuccessMessage: (msg: string | null) => void;
+  setUser: (user: User | null, session: Session | null) => void;
+  fetchAuthenticatedUserData: (userId: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ success: boolean; message?: string }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  signOutUser: () => Promise<void>;
+
+  // Learner Actions
+  setLanguage: (lang: Language) => void;
+  completeLevel: (worldId: number, levelId: number, xpEarned: number) => Promise<void>;
+  recordQuizAttempt: (attempt: QuizAttempt) => Promise<void>;
+  addWeakPoint: (concept: string, topic: string, worldId: number, levelId: number) => Promise<void>;
+  markWeakPointPracticed: (concept: string) => Promise<void>;
   unlockWorld: (worldId: number) => void;
-  setDemoMode: (enabled: boolean) => void;
   toggleSound: () => void;
   resetProgress: () => void;
 }
 
-const STORAGE_KEY = 'learnify_ai_progress_v1';
-
-const initialDefaultState = {
-  language: 'en' as Language,
-  learnerLevel: 3,
-  totalXp: 120,
-  xpToNextLevel: 500,
-  unlockedWorlds: [1, 2, 3],
-  completedLevels: [
-    'world-1-level-1', 'world-1-level-2', 'world-1-level-3',
-    'world-2-level-1',
-  ],
+// Initial state strictly starting at 0 for clean provisioning
+const initialZeroState = {
+  learnerLevel: 0,
+  totalXp: 0,
+  xpToNextLevel: 200,
+  unlockedWorlds: [1],
+  completedLevels: [] as string[],
   currentLevelByWorld: {
-    1: 4,
-    2: 2,
-    3: 1,
+    1: 1,
+    2: 0,
+    3: 0,
     4: 0,
     5: 0,
     6: 0,
-  },
-  quizzesTaken: 2,
-  quizHistory: [
-    {
-      id: 'quiz-1',
-      worldId: 1,
-      worldName: 'Basics and Syntax',
-      levelId: 2,
-      score: 8,
-      total: 10,
-      date: '2 days ago',
-      timestamp: Date.now() - 2 * 86400000,
-      wrongConcepts: ['CSS Selectors'],
-    },
-    {
-      id: 'quiz-2',
-      worldId: 2,
-      worldName: 'Color & Typography',
-      levelId: 1,
-      score: 7,
-      total: 10,
-      date: '3 days ago',
-      timestamp: Date.now() - 3 * 86400000,
-      wrongConcepts: ['Font Weights'],
-    },
-    {
-      id: 'quiz-3',
-      worldId: 3,
-      worldName: 'Flexbox',
-      levelId: 1,
-      score: 9,
-      total: 10,
-      date: '5 days ago',
-      timestamp: Date.now() - 5 * 86400000,
-      wrongConcepts: ['Flexbox (Layout)'],
-    },
-  ],
-  weakPoints: [
-    {
-      concept: 'Flexbox (Layout)',
-      topic: 'Layout and Positioning',
-      worldId: 3,
-      levelId: 1,
-      errorCount: 2,
-      status: 'Needs Practice' as const,
-      color: '#8B5CF6',
-    },
-    {
-      concept: 'CSS Selectors',
-      topic: 'Basics and Syntax',
-      worldId: 1,
-      levelId: 2,
-      errorCount: 3,
-      status: 'Needs Practice' as const,
-      color: '#F97316',
-    },
-    {
-      concept: 'Media Queries',
-      topic: 'Responsive Design',
-      worldId: 4,
-      levelId: 1,
-      errorCount: 1,
-      status: 'Needs Practice' as const,
-      color: '#10B981',
-    },
-  ],
-  demoMode: true,
-  soundEnabled: true,
+  } as Record<number, number>,
+  quizzesTaken: 0,
+  quizHistory: [] as QuizAttempt[],
+  weakPoints: [] as WeakPoint[],
 };
 
-// Safe localStorage helper
-function loadSavedState() {
-  if (typeof window === 'undefined') return initialDefaultState;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      return { ...initialDefaultState, ...JSON.parse(raw) };
-    }
-  } catch (e) {
-    console.error('Failed to load saved state from localStorage:', e);
-  }
-  return initialDefaultState;
-}
-
 export const useStore = create<StoreState>((set, get) => ({
-  ...initialDefaultState,
+  // Auth state defaults
+  user: null,
+  session: null,
+  userProfile: null,
+  authLoading: false,
+  authError: null,
+  authSuccessMessage: null,
+  isAuthModalOpen: false,
+
+  // Learner state starting at 0
+  language: 'en' as Language,
+  ...initialZeroState,
+  soundEnabled: true,
+
+  openAuthModal: () => set({ isAuthModalOpen: true, authError: null, authSuccessMessage: null }),
+  closeAuthModal: () => set({ isAuthModalOpen: false, authError: null, authSuccessMessage: null }),
+  setAuthError: (error) => set({ authError: error }),
+  setAuthSuccessMessage: (msg) => set({ authSuccessMessage: msg }),
+
+  setUser: (user, session) => {
+    set({ user, session });
+    if (user) {
+      get().fetchAuthenticatedUserData(user.id);
+    } else {
+      set({
+        userProfile: null,
+        ...initialZeroState,
+      });
+    }
+  },
+
+  // Strictly fetch authenticated user's specific data from Supabase
+  fetchAuthenticatedUserData: async (userId: string) => {
+    set({ authLoading: true, authError: null });
+    try {
+      // 1. Fetch Profile
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileErr) {
+        console.warn('Supabase profile query warning:', profileErr.message);
+      }
+
+      // 2. Fetch User World Progress
+      const { data: progressRows, error: progErr } = await supabase
+        .from('user_progress')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (progErr) {
+        console.warn('Supabase user_progress query warning:', progErr.message);
+      }
+
+      // 3. Fetch Quiz Attempts
+      const { data: quizRows, error: quizErr } = await supabase
+        .from('quiz_attempts')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (quizErr) {
+        console.warn('Supabase quiz_attempts query warning:', quizErr.message);
+      }
+
+      // 4. Fetch Weak Points
+      const { data: weakRows, error: weakErr } = await supabase
+        .from('weak_points')
+        .select('*')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false });
+
+      if (weakErr) {
+        console.warn('Supabase weak_points query warning:', weakErr.message);
+      }
+
+      // Construct currentLevelByWorld map
+      const currentLevelByWorld: Record<number, number> = {
+        1: 1,
+        2: 0,
+        3: 0,
+        4: 0,
+        5: 0,
+        6: 0,
+      };
+
+      let completedFromProgress: string[] = [];
+      if (progressRows && progressRows.length > 0) {
+        progressRows.forEach((row: any) => {
+          currentLevelByWorld[row.world_id] = row.highest_level_unlocked || 1;
+          if (Array.isArray(row.completed_levels)) {
+            completedFromProgress.push(...row.completed_levels);
+          }
+        });
+      }
+
+      const completedLevels = Array.from(
+        new Set([
+          ...(profile?.completed_levels || []),
+          ...completedFromProgress,
+        ])
+      );
+
+      // Transform quiz attempts
+      const quizHistory: QuizAttempt[] = (quizRows || []).map((row: any) => ({
+        id: row.id,
+        worldId: row.world_id,
+        worldName: row.world_name,
+        levelId: row.level_id,
+        score: row.score,
+        total: row.total,
+        date: new Date(row.created_at).toLocaleDateString(),
+        timestamp: new Date(row.created_at).getTime(),
+        wrongConcepts: row.wrong_concepts || [],
+      }));
+
+      // Transform weak points
+      const weakPoints: WeakPoint[] = (weakRows || []).map((row: any) => ({
+        concept: row.concept,
+        topic: row.topic,
+        worldId: row.world_id,
+        levelId: row.level_id,
+        errorCount: row.error_count || 1,
+        status: row.status as any,
+        color: row.color || '#EF4444',
+      }));
+
+      const learnerLevel = profile?.learner_level ?? 0;
+      const totalXp = profile?.total_xp ?? 0;
+      const xpToNextLevel = profile?.xp_to_next_level ?? 200;
+      const unlockedWorlds = profile?.unlocked_worlds?.length
+        ? profile.unlocked_worlds
+        : [1];
+      const quizzesTaken = profile?.quizzes_taken ?? quizHistory.length;
+
+      set({
+        userProfile: profile
+          ? {
+              id: profile.id,
+              email: profile.email || get().user?.email || null,
+              username: profile.username || 'Novice Builder',
+              learnerLevel,
+              totalXp,
+              quizzesTaken,
+            }
+          : {
+              id: userId,
+              email: get().user?.email || null,
+              username: get().user?.user_metadata?.full_name || 'Novice Builder',
+              learnerLevel: 0,
+              totalXp: 0,
+              quizzesTaken: 0,
+            },
+        learnerLevel,
+        totalXp,
+        xpToNextLevel,
+        unlockedWorlds,
+        completedLevels,
+        currentLevelByWorld,
+        quizzesTaken,
+        quizHistory,
+        weakPoints,
+        authLoading: false,
+      });
+    } catch (e: any) {
+      console.error('Error fetching authenticated user data:', e);
+      set({ authLoading: false });
+    }
+  },
+
+  signUpWithEmail: async (email, password, fullName) => {
+    set({ authLoading: true, authError: null, authSuccessMessage: null });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            username: fullName,
+          },
+        },
+      });
+
+      if (error) {
+        set({ authLoading: false, authError: error.message });
+        return { success: false, message: error.message };
+      }
+
+      if (data.user) {
+        set({
+          user: data.user,
+          session: data.session,
+          authLoading: false,
+          authSuccessMessage: 'Account created! Initialized blank state at 0.',
+        });
+        await get().fetchAuthenticatedUserData(data.user.id);
+        return { success: true };
+      }
+
+      set({ authLoading: false });
+      return { success: true, message: 'Check your email for confirmation.' };
+    } catch (err: any) {
+      const message = err.message || 'Failed to sign up';
+      set({ authLoading: false, authError: message });
+      return { success: false, message };
+    }
+  },
+
+  signInWithEmail: async (email, password) => {
+    set({ authLoading: true, authError: null, authSuccessMessage: null });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        set({ authLoading: false, authError: error.message });
+        return { success: false, message: error.message };
+      }
+
+      if (data.user) {
+        set({
+          user: data.user,
+          session: data.session,
+          authLoading: false,
+          isAuthModalOpen: false,
+        });
+        await get().fetchAuthenticatedUserData(data.user.id);
+        return { success: true };
+      }
+
+      set({ authLoading: false });
+      return { success: false, message: 'Unable to authenticate user.' };
+    } catch (err: any) {
+      const message = err.message || 'Failed to sign in';
+      set({ authLoading: false, authError: message });
+      return { success: false, message };
+    }
+  },
+
+  signOutUser: async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (_) {}
+    set({
+      user: null,
+      session: null,
+      userProfile: null,
+      ...initialZeroState,
+    });
+  },
 
   setLanguage: (lang: Language) => {
     set({ language: lang });
-    try {
-      const current = get();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, language: lang }));
-    } catch (_) {}
   },
 
-  completeLevel: (worldId: number, levelId: number, xpEarned: number) => {
-    set((state) => {
-      const globalId = `world-${worldId}-level-${levelId}`;
-      const completedLevels = state.completedLevels.includes(globalId)
-        ? state.completedLevels
-        : [...state.completedLevels, globalId];
+  completeLevel: async (worldId: number, levelId: number, xpEarned: number) => {
+    const state = get();
+    const globalId = `world-${worldId}-level-${levelId}`;
+    const completedLevels = state.completedLevels.includes(globalId)
+      ? state.completedLevels
+      : [...state.completedLevels, globalId];
 
-      const currentByWorld = { ...state.currentLevelByWorld };
-      if ((currentByWorld[worldId] || 0) <= levelId) {
-        currentByWorld[worldId] = levelId + 1;
-      }
+    const currentByWorld = { ...state.currentLevelByWorld };
+    if ((currentByWorld[worldId] || 0) <= levelId) {
+      currentByWorld[worldId] = levelId + 1;
+    }
 
-      // Check unlocking next world if 12+ levels in current world or world completed
-      let unlockedWorlds = [...state.unlockedWorlds];
-      if (levelId >= 12 && !unlockedWorlds.includes(worldId + 1) && worldId < 6) {
-        unlockedWorlds.push(worldId + 1);
-      }
+    let unlockedWorlds = [...state.unlockedWorlds];
+    if (levelId >= 12 && !unlockedWorlds.includes(worldId + 1) && worldId < 6) {
+      unlockedWorlds.push(worldId + 1);
+    }
 
-      const totalXp = state.totalXp + xpEarned;
-      const learnerLevel = Math.floor(totalXp / 200) + 1;
+    const totalXp = state.totalXp + xpEarned;
+    const learnerLevel = Math.floor(totalXp / 200);
 
-      const updated = {
-        ...state,
-        completedLevels,
-        currentLevelByWorld: currentByWorld,
-        unlockedWorlds,
-        totalXp,
-        learnerLevel,
-      };
-
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (_) {}
-
-      return updated;
+    set({
+      completedLevels,
+      currentLevelByWorld: currentByWorld,
+      unlockedWorlds,
+      totalXp,
+      learnerLevel,
     });
-  },
 
-  recordQuizAttempt: (attempt: QuizAttempt) => {
-    set((state) => {
-      const quizHistory = [attempt, ...state.quizHistory];
-      const quizzesTaken = state.quizzesTaken + 1;
-      const totalXp = state.totalXp + attempt.score * 5;
-      const learnerLevel = Math.floor(totalXp / 200) + 1;
+    // Play celebration audio cue & sound effects
+    soundEffects.playLevelComplete();
 
-      // Add weak points for wrong concepts
-      const newWeakPoints = [...state.weakPoints];
-      attempt.wrongConcepts.forEach((concept) => {
-        const existing = newWeakPoints.find((wp) => wp.concept === concept);
-        if (existing) {
-          existing.errorCount += 1;
-          existing.status = 'Needs Practice';
-        } else {
-          newWeakPoints.push({
-            concept,
-            topic: attempt.worldName,
-            worldId: attempt.worldId,
-            levelId: attempt.levelId,
-            errorCount: 1,
-            status: 'Needs Practice',
-            color: '#EF4444',
-          });
-        }
-      });
-
-      const updated = {
-        ...state,
-        quizHistory,
-        quizzesTaken,
-        totalXp,
-        learnerLevel,
-        weakPoints: newWeakPoints,
-      };
-
+    // Persist to Supabase if authenticated
+    if (state.user) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (_) {}
+        const userId = state.user.id;
+        // 1. Update profiles
+        await supabase
+          .from('profiles')
+          .update({
+            total_xp: totalXp,
+            learner_level: learnerLevel,
+            completed_levels: completedLevels,
+            unlocked_worlds: unlockedWorlds,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
 
-      return updated;
-    });
-  },
-
-  addWeakPoint: (concept: string, topic: string, worldId: number, levelId: number) => {
-    set((state) => {
-      const existing = state.weakPoints.find((w) => w.concept === concept);
-      let weakPoints;
-      if (existing) {
-        weakPoints = state.weakPoints.map((w) =>
-          w.concept === concept ? { ...w, errorCount: w.errorCount + 1, status: 'Needs Practice' as const } : w
-        );
-      } else {
-        weakPoints = [
-          ...state.weakPoints,
+        // 2. Upsert user_progress
+        await supabase.from('user_progress').upsert(
           {
-            concept,
-            topic,
-            worldId,
-            levelId,
-            errorCount: 1,
-            status: 'Needs Practice' as const,
-            color: '#F97316',
+            user_id: userId,
+            world_id: worldId,
+            highest_level_unlocked: currentByWorld[worldId],
+            completed_levels: completedLevels.filter((id) =>
+              id.startsWith(`world-${worldId}-`)
+            ),
+            xp_earned: totalXp,
+            updated_at: new Date().toISOString(),
           },
-        ];
+          { onConflict: 'user_id,world_id' }
+        );
+      } catch (err) {
+        console.warn('Supabase level completion sync notice:', err);
       }
-      return { ...state, weakPoints };
-    });
+    }
   },
 
-  markWeakPointPracticed: (concept: string) => {
-    set((state) => {
-      const weakPoints = state.weakPoints.map((w) =>
-        w.concept === concept ? { ...w, status: 'Mastered' as const } : w
-      );
-      return { ...state, weakPoints };
+  recordQuizAttempt: async (attempt: QuizAttempt) => {
+    const state = get();
+    const quizHistory = [attempt, ...state.quizHistory];
+    const quizzesTaken = state.quizzesTaken + 1;
+    const totalXp = state.totalXp + attempt.score * 5;
+    const learnerLevel = Math.floor(totalXp / 200);
+
+    // Update weak points for wrong concepts
+    const newWeakPoints = [...state.weakPoints];
+    attempt.wrongConcepts.forEach((concept) => {
+      const existing = newWeakPoints.find((wp) => wp.concept === concept);
+      if (existing) {
+        existing.errorCount += 1;
+        existing.status = 'Needs Practice';
+      } else {
+        newWeakPoints.push({
+          concept,
+          topic: attempt.worldName,
+          worldId: attempt.worldId,
+          levelId: attempt.levelId,
+          errorCount: 1,
+          status: 'Needs Practice',
+          color: '#EF4444',
+        });
+      }
     });
+
+    set({
+      quizHistory,
+      quizzesTaken,
+      totalXp,
+      learnerLevel,
+      weakPoints: newWeakPoints,
+    });
+
+    // Persist to Supabase if authenticated
+    if (state.user) {
+      try {
+        const userId = state.user.id;
+
+        // 1. Insert quiz attempt
+        await supabase.from('quiz_attempts').insert({
+          user_id: userId,
+          world_id: attempt.worldId,
+          world_name: attempt.worldName,
+          level_id: attempt.levelId,
+          score: attempt.score,
+          total: attempt.total,
+          wrong_concepts: attempt.wrongConcepts,
+        });
+
+        // 2. Update profile
+        await supabase
+          .from('profiles')
+          .update({
+            total_xp: totalXp,
+            learner_level: learnerLevel,
+            quizzes_taken: quizzesTaken,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
+
+        // 3. Upsert weak points
+        for (const concept of attempt.wrongConcepts) {
+          const wp = newWeakPoints.find((w) => w.concept === concept);
+          if (wp) {
+            await supabase.from('weak_points').upsert(
+              {
+                user_id: userId,
+                concept: wp.concept,
+                topic: wp.topic,
+                world_id: wp.worldId,
+                level_id: wp.levelId,
+                error_count: wp.errorCount,
+                status: 'Needs Practice',
+                color: wp.color,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'user_id,concept' }
+            );
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase quiz attempt sync notice:', err);
+      }
+    }
+  },
+
+  addWeakPoint: async (concept: string, topic: string, worldId: number, levelId: number) => {
+    const state = get();
+    const existing = state.weakPoints.find((w) => w.concept === concept);
+    let weakPoints;
+    if (existing) {
+      weakPoints = state.weakPoints.map((w) =>
+        w.concept === concept
+          ? { ...w, errorCount: w.errorCount + 1, status: 'Needs Practice' as const }
+          : w
+      );
+    } else {
+      weakPoints = [
+        ...state.weakPoints,
+        {
+          concept,
+          topic,
+          worldId,
+          levelId,
+          errorCount: 1,
+          status: 'Needs Practice' as const,
+          color: '#F97316',
+        },
+      ];
+    }
+    set({ weakPoints });
+
+    if (state.user) {
+      try {
+        const wp = weakPoints.find((w) => w.concept === concept);
+        if (wp) {
+          await supabase.from('weak_points').upsert(
+            {
+              user_id: state.user.id,
+              concept: wp.concept,
+              topic: wp.topic,
+              world_id: wp.worldId,
+              level_id: wp.levelId,
+              error_count: wp.errorCount,
+              status: wp.status,
+              color: wp.color,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,concept' }
+          );
+        }
+      } catch (_) {}
+    }
+  },
+
+  markWeakPointPracticed: async (concept: string) => {
+    const state = get();
+    const weakPoints = state.weakPoints.map((w) =>
+      w.concept === concept ? { ...w, status: 'Mastered' as const } : w
+    );
+    set({ weakPoints });
+
+    if (state.user) {
+      try {
+        await supabase
+          .from('weak_points')
+          .update({
+            status: 'Mastered',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', state.user.id)
+          .eq('concept', concept);
+      } catch (_) {}
+    }
   },
 
   unlockWorld: (worldId: number) => {
-    set((state) => {
-      if (state.unlockedWorlds.includes(worldId)) return state;
-      return { ...state, unlockedWorlds: [...state.unlockedWorlds, worldId] };
+    const state = get();
+    if (state.unlockedWorlds.includes(worldId)) return;
+    const unlockedWorlds = [...state.unlockedWorlds, worldId];
+    set({ unlockedWorlds });
+
+    if (state.user) {
+      const syncUnlock = async () => {
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              unlocked_worlds: unlockedWorlds,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', state.user!.id);
+        } catch (_) {}
+      };
+      syncUnlock();
+    }
+  },
+
+  toggleSound: () => {
+    set((s) => {
+      const nextVal = !s.soundEnabled;
+      if (nextVal) {
+        // Play brief success ping when enabled
+        soundEffects.playSuccessPing();
+      }
+      return { soundEnabled: nextVal };
     });
   },
 
-  setDemoMode: (enabled: boolean) => set({ demoMode: enabled }),
-  toggleSound: () => set((s) => ({ soundEnabled: !s.soundEnabled })),
-
   resetProgress: () => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (_) {}
-    set({ ...initialDefaultState });
+    set({ ...initialZeroState });
   },
 }));

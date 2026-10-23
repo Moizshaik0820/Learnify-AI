@@ -17,6 +17,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { soundEffects } from '@/lib/soundEffects';
 
 export default function RevisionCenterPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -70,6 +71,7 @@ export default function RevisionCenterPage() {
     markWeakPointPracticed(mission.concept);
     try {
       confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+      soundEffects.playCelebrationChime();
     } catch (_) {}
     setActiveSideMission(null);
   };

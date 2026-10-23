@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { translations } from '@/data/translations';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Sparkles } from 'lucide-react';
 
 export const WeakPointsCard: React.FC = () => {
   const language = useStore((s) => s.language);
@@ -55,6 +55,13 @@ export const WeakPointsCard: React.FC = () => {
             </div>
           </Link>
         ))}
+
+        {weakPoints.length === 0 && (
+          <div className="p-4 text-center text-xs text-slate-400 bg-slate-50/60 rounded-xl border border-slate-100/60 flex flex-col items-center justify-center space-y-1">
+            <Sparkles className="w-4 h-4 text-emerald-500" />
+            <span>No weak points detected. All concepts currently clean!</span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { soundEffects } from '@/lib/soundEffects';
 
 export default function GameWorkspacePage() {
   const params = useParams();
@@ -68,6 +69,7 @@ export default function GameWorkspacePage() {
     if (result.isValid) {
       try {
         confetti({ particleCount: 30, spread: 45, origin: { y: 0.7 } });
+        soundEffects.playCelebrationChime();
       } catch (_) {}
     }
   };
@@ -87,6 +89,10 @@ export default function GameWorkspacePage() {
     setIsQuizModalOpen(false);
     completeLevel(world.id, level.id, level.xpReward);
     setShowLevelCompletedModal(true);
+    try {
+      confetti({ particleCount: 75, spread: 65, origin: { y: 0.6 } });
+      soundEffects.playCelebrationChime();
+    } catch (_) {}
   };
 
   const handleNextLevel = () => {

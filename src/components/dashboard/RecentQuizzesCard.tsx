@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { translations } from '@/data/translations';
-import { FileCheck2, ChevronRight } from 'lucide-react';
+import { FileCheck2, ChevronRight, HelpCircle } from 'lucide-react';
 
 export const RecentQuizzesCard: React.FC = () => {
   const language = useStore((s) => s.language);
@@ -66,6 +66,12 @@ export const RecentQuizzesCard: React.FC = () => {
             </Link>
           );
         })}
+
+        {recentItems.length === 0 && (
+          <div className="p-4 text-center text-xs text-slate-400 bg-slate-50/60 rounded-xl border border-slate-100/60">
+            No quiz attempts recorded yet. Play a level and take your first quiz!
+          </div>
+        )}
       </div>
     </div>
   );
