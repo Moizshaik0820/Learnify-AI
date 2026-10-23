@@ -184,7 +184,7 @@ export default function MindMapPage() {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="fixed inset-0 bg-navy-900/50 backdrop-blur-xs"
+            className="fixed inset-0 bg-navy-900/50 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
           />
           <div className="relative z-10 w-64 max-w-xs bg-white h-full shadow-2xl">
@@ -196,7 +196,7 @@ export default function MindMapPage() {
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar onOpenMobileMenu={() => setMobileMenuOpen(true)} />
 
-        <main className="p-6 lg:p-8 max-w-6xl mx-auto w-full space-y-6">
+        <main className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto w-full space-y-6 pb-16">
           {/* Breadcrumb */}
           <div className="flex items-center space-x-2 text-xs text-slate-500">
             <Link href="/" className="hover:text-purple-600 transition">Home</Link>
@@ -214,7 +214,7 @@ export default function MindMapPage() {
           </div>
 
           {/* Interactive Mind Map Visual Container */}
-          <div className="bg-white rounded-3xl border border-[#E6EAF2] p-6 sm:p-8 shadow-sm space-y-8">
+          <div className="bg-white rounded-3xl border border-[#E6EAF2] p-5 sm:p-7 shadow-sm space-y-6">
             
             {/* Legend */}
             <div className="flex flex-wrap items-center gap-4 text-xs">
@@ -238,30 +238,31 @@ export default function MindMapPage() {
 
             {/* Central Kingdom Node */}
             <div className="flex justify-center">
-              <div className="p-4 px-6 rounded-2xl bg-gradient-to-r from-purple-700 via-indigo-700 to-blue-700 text-white font-extrabold text-sm sm:text-base shadow-lg shadow-purple-500/20 border-2 border-purple-300/40 flex items-center space-x-2.5">
+              <div className="p-3.5 px-6 rounded-2xl bg-gradient-to-r from-purple-700 via-indigo-700 to-blue-700 text-white font-extrabold text-sm sm:text-base shadow-lg shadow-purple-500/20 border-2 border-purple-300/40 flex items-center space-x-2.5">
                 <Sparkles className="w-5 h-5 text-amber-300" />
                 <span>Learnify AI: CSS Castle Architecture</span>
               </div>
             </div>
 
             {/* Grid of Concept Clusters */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 pt-2">
               {conceptNodes.map((node) => {
                 const isWeak = node.status === 'weak';
                 const isMastered = node.status === 'mastered';
                 const isUnlocked = node.status === 'unlocked';
+                const isLocked = node.status === 'locked';
 
-                let cardStyle = 'border-slate-200 bg-slate-50/50 opacity-60';
-                let badgeStyle = 'bg-slate-200 text-slate-500';
+                let cardStyle = 'border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-slate-50 shadow-xs cursor-pointer';
+                let badgeStyle = 'bg-slate-100 text-slate-600 border border-slate-200';
 
                 if (isWeak) {
-                  cardStyle = 'border-rose-300 bg-rose-50/40 hover:shadow-md cursor-pointer';
+                  cardStyle = 'border-rose-200 bg-rose-50/40 hover:border-rose-300 hover:shadow-md cursor-pointer';
                   badgeStyle = 'bg-rose-100 text-rose-700 border border-rose-200';
                 } else if (isMastered) {
-                  cardStyle = 'border-emerald-200 bg-emerald-50/30 hover:shadow-md cursor-pointer';
+                  cardStyle = 'border-emerald-200 bg-emerald-50/30 hover:border-emerald-300 hover:shadow-md cursor-pointer';
                   badgeStyle = 'bg-emerald-100 text-emerald-700 border border-emerald-200';
                 } else if (isUnlocked) {
-                  cardStyle = 'border-purple-200 bg-white hover:shadow-md cursor-pointer';
+                  cardStyle = 'border-purple-200 bg-purple-50/20 hover:border-purple-300 hover:shadow-md cursor-pointer';
                   badgeStyle = 'bg-purple-100 text-purple-700 border border-purple-200';
                 }
 
@@ -269,28 +270,38 @@ export default function MindMapPage() {
                   <div
                     key={node.id}
                     onClick={() => setSelectedNode(node)}
-                    className={`rounded-2xl p-4.5 border transition-all ${cardStyle}`}
+                    className={`group rounded-2xl p-4 sm:p-5 border flex flex-col justify-between h-full transition-all duration-200 hover:-translate-y-0.5 ${cardStyle}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        {node.category}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeStyle}`}>
-                        {isWeak ? 'Needs Practice' : isMastered ? 'Mastered' : isUnlocked ? 'Unlocked' : 'Locked'}
-                      </span>
+                    {/* Top: Category & Status Badge */}
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                          {node.category}
+                        </span>
+                        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${badgeStyle}`}>
+                          {isWeak && <AlertTriangle className="w-2.5 h-2.5 text-rose-600 animate-pulse" />}
+                          {isMastered && <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />}
+                          {isUnlocked && <Sparkles className="w-2.5 h-2.5 text-purple-600" />}
+                          {isLocked && <Lock className="w-2.5 h-2.5 text-slate-500" />}
+                          <span>{isWeak ? 'Needs Practice' : isMastered ? 'Mastered' : isUnlocked ? 'Unlocked' : 'Locked'}</span>
+                        </span>
+                      </div>
+
+                      {/* Title */}
+                      <h4 className="font-bold text-sm text-[#141C38] mt-2.5 leading-snug">
+                        {language === 'hinglish' ? node.nameHinglish : node.name}
+                      </h4>
+
+                      {/* Explanation */}
+                      <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                        {language === 'hinglish' ? node.explanationHinglish : node.explanation}
+                      </p>
                     </div>
 
-                    <h4 className="font-bold text-sm text-[#141C38] mt-2">
-                      {language === 'hinglish' ? node.nameHinglish : node.name}
-                    </h4>
-
-                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                      {language === 'hinglish' ? node.explanationHinglish : node.explanation}
-                    </p>
-
-                    <div className="pt-3 border-t border-slate-100/80 mt-3 flex items-center justify-between text-xs">
-                      <span className="text-[11px] text-slate-400">Level {node.levelId}</span>
-                      <span className="font-semibold text-purple-600 flex items-center space-x-1">
+                    {/* Bottom: Level & Details Link */}
+                    <div className="pt-3 border-t border-slate-200/70 mt-3.5 flex items-center justify-between text-xs">
+                      <span className="text-[11px] font-medium text-slate-400">Level {node.levelId}</span>
+                      <span className="font-semibold text-purple-600 flex items-center space-x-1 group-hover:translate-x-0.5 transition-transform">
                         <span>Details</span>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </span>
@@ -339,6 +350,16 @@ export default function MindMapPage() {
               </div>
             )}
 
+            {selectedNode.status === 'locked' && (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 space-y-1">
+                <div className="flex items-center space-x-1.5 font-bold">
+                  <Lock className="w-4 h-4 text-slate-500" />
+                  <span>World Currently Locked</span>
+                </div>
+                <p>Complete earlier CSS castle levels to unlock this domain and earn mastery points!</p>
+              </div>
+            )}
+
             <div className="pt-2 flex items-center justify-between">
               {selectedNode.status === 'weak' ? (
                 <button
@@ -353,11 +374,11 @@ export default function MindMapPage() {
               ) : <div></div>}
 
               <Link
-                href={`/worlds/${selectedNode.worldId}/${selectedNode.levelId}`}
+                href={selectedNode.status === 'locked' ? `/worlds/${selectedNode.worldId}` : `/worlds/${selectedNode.worldId}/${selectedNode.levelId}`}
                 onClick={() => setSelectedNode(null)}
                 className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-md flex items-center space-x-1.5 transition"
               >
-                <span>Launch Practice Level</span>
+                <span>{selectedNode.status === 'locked' ? 'View World' : 'Launch Practice Level'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
