@@ -260,8 +260,12 @@ export const useStore = create<StoreState>((set, get) => ({
       });
 
       if (error) {
-        set({ authLoading: false, authError: error.message });
-        return { success: false, message: error.message };
+        let errorMsg = error.message;
+        if (error.message.toLowerCase().includes('rate limit')) {
+          errorMsg = "Supabase email rate limit reached! Go to your Supabase Dashboard -> Authentication -> Providers -> Email -> turn OFF 'Confirm email' so accounts can be registered instantly without sending verification emails.";
+        }
+        set({ authLoading: false, authError: errorMsg });
+        return { success: false, message: errorMsg };
       }
 
       if (data.user) {
@@ -278,7 +282,10 @@ export const useStore = create<StoreState>((set, get) => ({
       set({ authLoading: false });
       return { success: true, message: 'Check your email for confirmation.' };
     } catch (err: any) {
-      const message = err.message || 'Failed to sign up';
+      let message = err.message || 'Failed to sign up';
+      if (message.includes('Failed to fetch')) {
+        message = 'Connection error (Failed to fetch). Please restart your development server (npm run dev) so the new environment variables take effect.';
+      }
       set({ authLoading: false, authError: message });
       return { success: false, message };
     }

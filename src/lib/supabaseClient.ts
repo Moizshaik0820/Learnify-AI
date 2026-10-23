@@ -1,16 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xyzcompany.supabase.co';
-const supabaseAnonKey =
+const rawUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  'https://emkeoulksymofnelsjmc.supabase.co';
+const rawKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder';
+  'sb_publishable_OD2AL2p0brhRY0KUARdlQA_086HHacM';
+
+// Clean any accidental whitespace or newlines
+const supabaseUrl = rawUrl.trim();
+const supabaseAnonKey = rawKey.trim();
 
 export const isSupabaseConfigured = Boolean(
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-project') &&
-    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('xyzcompany')
+  supabaseUrl &&
+    supabaseAnonKey &&
+    !supabaseUrl.includes('your-project') &&
+    supabaseUrl.startsWith('https://')
 );
 
 // Hardcoded, secure Supabase client connection
