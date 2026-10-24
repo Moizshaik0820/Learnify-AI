@@ -1,10 +1,17 @@
 /**
  * Wrapper around the Google Gemini generative AI endpoint.
- * Expects env variables:
- *   AI_ENDPOINT – base URL (without ?key=…), e.g.
- *       https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent
- *   AI_API_KEY – your Gemini API key.
+ * Dynamically cascades through available Gemini models to guarantee
+ * compatibility with any Google AI Studio key tier.
  */
+
+const KNOWN_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash-lite',
+];
+
 export async function callAI(prompt: string): Promise<string> {
   const apiKey =
     process.env.AI_API_KEY ||
@@ -13,31 +20,31 @@ export async function callAI(prompt: string): Promise<string> {
     process.env.NEXT_PUBLIC_AI_API_KEY ||
     process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
-  let endpoint =
-    process.env.AI_ENDPOINT ||
-    process.env.NEXT_PUBLIC_AI_ENDPOINT ||
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
-
-  // Replace any deprecated/sunset model names with gemini-3.8-flash
-  endpoint = endpoint.replace(
-    /gemini-(?:1\.5|2\.0|2\.5|3\.0|3\.5)-flash(?:-(?:latest|preview|lite))?/g,
-    'gemini-3.8-flash'
-  );
-
-  if (!apiKey) {
+  if (!apiKey || !apiKey.trim()) {
     throw new Error(
-      'AI credentials missing. Set AI_API_KEY or GEMINI_API_KEY in Vercel Environment Variables, then redeploy.'
+      'AI credentials missing. Set AI_API_KEY in Vercel Environment Variables, then redeploy.'
     );
   }
 
-  const candidateEndpoints = [
-    endpoint,
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent',
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-lite:generateContent',
-  ];
+  const cleanKey = apiKey.trim();
 
-  // Remove duplicates
-  const endpointsToTry = Array.from(new Set(candidateEndpoints));
+  // Collect candidate endpoints
+  const endpointsToTry: string[] = [];
+
+  // 1. If user provided a custom AI_ENDPOINT in env, test it first
+  // (filtering out known hallucinated model names like gemini-3.8-flash-lite)
+  const envEndpoint = (process.env.AI_ENDPOINT || process.env.NEXT_PUBLIC_AI_ENDPOINT || '').trim();
+  if (envEndpoint && !envEndpoint.includes('gemini-3.8-flash-lite')) {
+    endpointsToTry.push(envEndpoint.split('?')[0]);
+  }
+
+  // 2. Add standard production models
+  for (const model of KNOWN_MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    if (!endpointsToTry.includes(url)) {
+      endpointsToTry.push(url);
+    }
+  }
 
   const body = {
     contents: [
@@ -52,27 +59,36 @@ export async function callAI(prompt: string): Promise<string> {
   };
 
   let lastError = 'AI service error';
+  const attemptedErrors: string[] = [];
 
   for (const targetEndpoint of endpointsToTry) {
     try {
-      const url = `${targetEndpoint}?key=${apiKey}`;
+      const url = `${targetEndpoint}?key=${cleanKey}`;
+      console.log(`[Learnify AI] Attempting Gemini endpoint: ${targetEndpoint}`);
+
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': cleanKey,
+        },
         body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const errText = await res.text();
-        console.error(`Gemini API error for ${targetEndpoint}:`, res.status, errText);
+        console.warn(`[Learnify AI] Endpoint failed (${res.status}): ${targetEndpoint} -> ${errText}`);
 
         try {
           const errJson = JSON.parse(errText);
-          lastError = errJson?.error?.message || `AI service error (${res.status})`;
+          const msg = errJson?.error?.message || `HTTP ${res.status}`;
+          lastError = msg;
+          attemptedErrors.push(`${targetEndpoint.split('/models/')[1] || targetEndpoint}: ${msg}`);
         } catch {
-          lastError = `AI service error (${res.status})`;
+          lastError = `HTTP ${res.status}`;
+          attemptedErrors.push(`${targetEndpoint}: HTTP ${res.status}`);
         }
-        // If 404 or model not found, continue to next candidate
+        // Try next candidate model
         continue;
       }
 
@@ -80,16 +96,19 @@ export async function callAI(prompt: string): Promise<string> {
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
       if (!text) {
-        lastError = 'Empty response from AI service.';
+        lastError = 'Empty response received from AI model.';
         continue;
       }
 
+      console.log(`[Learnify AI] Successfully generated content using: ${targetEndpoint}`);
       return text;
     } catch (err: any) {
-      console.error(`Network error calling ${targetEndpoint}:`, err);
+      console.error(`[Learnify AI] Network failure for ${targetEndpoint}:`, err);
       lastError = err?.message || lastError;
+      attemptedErrors.push(`${targetEndpoint}: ${err?.message || 'Network error'}`);
     }
   }
 
+  console.error('[Learnify AI] All Gemini model endpoints failed:', attemptedErrors);
   throw new Error(lastError);
 }
