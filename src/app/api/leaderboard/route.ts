@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { supabaseServer } from '@/lib/supabaseServer';
 import { calculateLevelAndProgress, getAvatarInitials } from '@/lib/levelSystem';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     let currentUserRank: number | null = null;
 
     // 1. Attempt to query Supabase database
-    const { data: allProfiles, error: fetchError, count } = await supabase
+    const { data: allProfiles, error: fetchError, count } = await supabaseServer
       .from('profiles')
       .select('id, username, total_xp, learner_level, quizzes_taken, completed_levels, updated_at', { count: 'exact' })
       .order('total_xp', { ascending: false })
