@@ -1,4 +1,5 @@
 export type Language = 'en' | 'hinglish';
+export type ThemeMode = 'light' | 'dark';
 
 export interface CSSRuleChallenge {
   property: string;

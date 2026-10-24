@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { worldsData } from '@/data/worldsData';
@@ -11,13 +11,12 @@ import { FantasyCastle } from '@/components/game/FantasyCastle';
 import { CodeEditor } from '@/components/game/CodeEditor';
 import { TimedTypingModal } from '@/components/game/TimedTypingModal';
 import { QuizModal } from '@/components/game/QuizModal';
+import { CastleCopyProtectionNotice } from '@/components/game/CastleCopyProtectionNotice';
 import {
   ChevronLeft,
   ChevronRight,
   BookOpen,
-  Code2,
   Sparkles,
-  Zap,
   CheckCircle2,
   Lock,
   ArrowRight,
@@ -37,7 +36,6 @@ export default function GameWorkspacePage() {
 
   const language = useStore((s) => s.language);
   const completeLevel = useStore((s) => s.completeLevel);
-  const currentLevelByWorld = useStore((s) => s.currentLevelByWorld);
   const completedLevels = useStore((s) => s.completedLevels);
   const t = translations[language];
 
@@ -48,9 +46,17 @@ export default function GameWorkspacePage() {
   const [isTypingModalOpen, setIsTypingModalOpen] = useState(false);
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [showLevelCompletedModal, setShowLevelCompletedModal] = useState(false);
+  const [showCopyNotice, setShowCopyNotice] = useState(false);
 
-  // Check if already completed previously
-  const isAlreadyCompleted = completedLevels.includes(level.globalId);
+  const copyNoticeTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const triggerCopyNotice = () => {
+    setShowCopyNotice(true);
+    if (copyNoticeTimerRef.current) clearTimeout(copyNoticeTimerRef.current);
+    copyNoticeTimerRef.current = setTimeout(() => {
+      setShowCopyNotice(false);
+    }, 3200);
+  };
 
   // Reset editor on level change
   useEffect(() => {
@@ -60,8 +66,17 @@ export default function GameWorkspacePage() {
     setShowLevelCompletedModal(false);
   }, [worldId, levelId, level]);
 
-  const handleApplyCss = (code: string) => {
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (copyNoticeTimerRef.current) clearTimeout(copyNoticeTimerRef.current);
+    };
+  }, []);
+
+  const handleApplyCss = async (code: string) => {
     setCustomCss(code);
+
+    // Validate solution
     const result = validateCssSolution(code, level.challenges);
     setIsPassed(result.isValid);
     setValidationMsg(result.message);
@@ -75,17 +90,15 @@ export default function GameWorkspacePage() {
   };
 
   const handleLaunchChallengeChain = () => {
-    // 1. Open Timed Typing modal
     setIsTypingModalOpen(true);
   };
 
-  const handleTypingCompleted = (accuracy: number, wpm: number) => {
+  const handleTypingCompleted = () => {
     setIsTypingModalOpen(false);
-    // 2. Open Quiz modal
     setIsQuizModalOpen(true);
   };
 
-  const handleQuizCompleted = (score: number, total: number) => {
+  const handleQuizCompleted = () => {
     setIsQuizModalOpen(false);
     completeLevel(world.id, level.id, level.xpReward);
     setShowLevelCompletedModal(true);
@@ -106,28 +119,48 @@ export default function GameWorkspacePage() {
     }
   };
 
+  // Keyboard copy interceptor scoped strictly to this gameplay workspace container
+  const handleContainerKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+      if (!isPassed) {
+        // Prevent copying from challenge area
+        e.preventDefault();
+        triggerCopyNotice();
+      }
+    }
+  };
+
   const levelTitle = language === 'hinglish' && level.titleHinglish ? level.titleHinglish : level.title;
   const levelConcept = language === 'hinglish' && level.conceptHinglish ? level.conceptHinglish : level.concept;
   const levelExplanation = language === 'hinglish' && level.explanationHinglish ? level.explanationHinglish : level.explanation;
   const levelInstructions = language === 'hinglish' && level.instructionsHinglish ? level.instructionsHinglish : level.instructions;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFD] flex flex-col">
+    <div
+      onKeyDown={handleContainerKeyDown}
+      className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] text-[#1E293B] dark:text-[#F1F5F9] flex flex-col relative transition-colors duration-200"
+    >
+      {/* Toast Notice: Code Copying Disabled */}
+      <CastleCopyProtectionNotice
+        isVisible={showCopyNotice}
+        onDismiss={() => setShowCopyNotice(false)}
+      />
+
       {/* Top Navigation Bar */}
-      <header className="h-14 px-6 bg-white border-b border-[#E6EAF2] flex items-center justify-between sticky top-0 z-30">
+      <header className="h-14 px-6 bg-white dark:bg-[#1E293B] border-b border-[#E2E8F0] dark:border-[#334155] flex items-center justify-between sticky top-0 z-30 transition-colors">
         <div className="flex items-center space-x-3">
           <Link
             href={`/worlds/${world.id}`}
-            className="flex items-center space-x-1 text-xs font-semibold text-slate-500 hover:text-purple-600 transition"
+            className="flex items-center space-x-1 text-xs font-semibold text-slate-500 dark:text-[#CBD5E1] hover:text-[#3B82F6] dark:hover:text-[#60A5FA] transition"
           >
             <ChevronLeft className="w-4 h-4" />
             <span>World {world.id} Map</span>
           </Link>
 
-          <span className="text-slate-300">|</span>
+          <span className="text-slate-300 dark:text-slate-600">|</span>
 
-          <span className="text-xs font-bold text-[#141C38]">
-            Level {level.id} of 24: <span className="font-normal text-slate-600">{levelTitle}</span>
+          <span className="text-xs font-bold text-[#1E293B] dark:text-[#F1F5F9]">
+            Level {level.id} of 24: <span className="font-normal text-slate-600 dark:text-[#CBD5E1]">{levelTitle}</span>
           </span>
         </div>
 
@@ -135,21 +168,21 @@ export default function GameWorkspacePage() {
           {level.id > 1 && (
             <Link
               href={`/worlds/${world.id}/${level.id - 1}`}
-              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
+              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
               title="Previous Level"
             >
               <ChevronLeft className="w-4 h-4" />
             </Link>
           )}
 
-          <span className="text-xs font-mono font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-200">
+          <span className="text-xs font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-900/60">
             +{level.xpReward} XP
           </span>
 
           {level.id < 24 && (
             <Link
               href={`/worlds/${world.id}/${level.id + 1}`}
-              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
+              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
               title="Next Level"
             >
               <ChevronRight className="w-4 h-4" />
@@ -166,10 +199,10 @@ export default function GameWorkspacePage() {
           {/* 1. The Interactive Fantasy Castle */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-[#94A3B8]">
                 Live Castle Construction Preview
               </h3>
-              <span className="text-xs font-semibold text-purple-600">
+              <span className="text-xs font-semibold text-[#3B82F6] dark:text-[#60A5FA]">
                 Alters: {level.castleComponentChanged}
               </span>
             </div>
@@ -181,42 +214,69 @@ export default function GameWorkspacePage() {
           </div>
 
           {/* 2. Concept Lesson & Instructions Card */}
-          <div className="bg-white rounded-2xl border border-[#E6EAF2] p-5 shadow-sm space-y-4">
+          <div className="bg-white dark:bg-[#1E293B] rounded-2xl border border-[#E2E8F0] dark:border-[#334155] p-5 shadow-xs space-y-4 transition-colors">
             {/* Header */}
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-[11px] font-bold text-purple-600 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
+                <span className="text-[11px] font-bold text-[#1D4ED8] dark:text-[#93C5FD] bg-[#DBEAFE] dark:bg-[#1E3A5F] px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-900/60">
                   {levelConcept}
                 </span>
-                <h2 className="text-base sm:text-lg font-bold text-[#141C38] mt-1.5">
+                <h2 className="text-base sm:text-lg font-bold text-[#1E293B] dark:text-[#F1F5F9] mt-1.5">
                   {levelTitle}
                 </h2>
               </div>
             </div>
 
             {/* Simple Concept Explanation */}
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-[#CBD5E1] leading-relaxed">
               {levelExplanation}
             </p>
 
-            {/* Working Example Box */}
+            {/* Working Example Box with Protected Code View */}
             <div className="space-y-1.5">
-              <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-700">
-                <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Working Example Code:</span>
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-[#CBD5E1]">
+                <div className="flex items-center space-x-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-[#3B82F6] dark:text-[#60A5FA]" />
+                  <span>Working Example Code:</span>
+                </div>
+                {!isPassed && (
+                  <span className="text-[10px] font-semibold text-slate-400 dark:text-[#94A3B8] flex items-center space-x-1">
+                    <Lock className="w-3 h-3 text-amber-500" />
+                    <span>Copy Protected</span>
+                  </span>
+                )}
               </div>
-              <pre className="p-3 bg-slate-900 rounded-xl text-cyan-300 font-mono text-xs overflow-x-auto border border-slate-800">
-                {level.exampleCode}
-              </pre>
+
+              {/* Protected Example Code: Drag selection and copy event intercepted */}
+              <div
+                onCopy={(e) => {
+                  if (!isPassed) {
+                    e.preventDefault();
+                    triggerCopyNotice();
+                  }
+                }}
+                onContextMenu={(e) => {
+                  if (!isPassed) {
+                    e.preventDefault();
+                    triggerCopyNotice();
+                  }
+                }}
+                onDragStart={(e) => e.preventDefault()}
+                className="relative select-none"
+              >
+                <pre className="p-3 bg-slate-900 dark:bg-[#111827] rounded-xl text-cyan-300 dark:text-cyan-400 font-mono text-xs overflow-x-auto border border-slate-800 dark:border-[#334155] select-none">
+                  {level.exampleCode}
+                </pre>
+              </div>
             </div>
 
             {/* Challenge Instructions */}
-            <div className="p-3.5 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200/60 space-y-1">
-              <div className="flex items-center space-x-1.5 text-xs font-bold text-purple-900">
-                <Sparkles className="w-4 h-4 text-purple-600" />
+            <div className="p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50/50 dark:from-[#1E3A5F]/40 dark:to-[#111827] rounded-xl border border-blue-200/80 dark:border-blue-900/60 space-y-1">
+              <div className="flex items-center space-x-1.5 text-xs font-bold text-blue-900 dark:text-blue-300">
+                <Sparkles className="w-4 h-4 text-[#3B82F6] dark:text-[#60A5FA]" />
                 <span>Your Challenge:</span>
               </div>
-              <p className="text-xs text-purple-900 leading-relaxed font-medium">
+              <p className="text-xs text-blue-950 dark:text-blue-200 leading-relaxed font-medium">
                 {levelInstructions}
               </p>
             </div>
@@ -233,6 +293,7 @@ export default function GameWorkspacePage() {
             onSuccessNext={handleLaunchChallengeChain}
             isPassed={isPassed}
             validationMessage={validationMsg}
+            onTriggerCopyNotice={triggerCopyNotice}
           />
         </div>
 
@@ -264,36 +325,36 @@ export default function GameWorkspacePage() {
 
       {/* 3. Level Success Announcement Modal */}
       {showLevelCompletedModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-900/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl border border-purple-200 shadow-2xl p-6 text-center space-y-4 animate-in fade-in zoom-in-95">
-            <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-white dark:bg-[#1E293B] rounded-2xl border border-emerald-200 dark:border-emerald-900/60 shadow-2xl p-6 text-center space-y-4 animate-in fade-in zoom-in-95">
+            <div className="w-16 h-16 mx-auto rounded-full bg-[#DCFCE7] dark:bg-emerald-950/60 text-[#22A447] dark:text-[#4ADE80] flex items-center justify-center shadow-lg">
               <CheckCircle2 className="w-9 h-9" />
             </div>
 
             <div>
-              <h3 className="text-xl font-black text-[#141C38]">
+              <h3 className="text-xl font-black text-[#1E293B] dark:text-[#F1F5F9]">
                 {t.game.unlockedNext}
               </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                You earned <strong className="text-purple-600">+{level.xpReward} XP</strong> and reinforced your castle!
+              <p className="text-xs text-slate-500 dark:text-[#CBD5E1] mt-1">
+                You earned <strong className="text-amber-600 dark:text-amber-300">+{level.xpReward} XP</strong> and reinforced your castle!
               </p>
             </div>
 
-            <div className="p-3 bg-purple-50 rounded-xl border border-purple-100 text-xs text-purple-800">
-              🏰 Castle Wall Upgraded: <strong>{level.castleComponentChanged}</strong>
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-900/60 text-xs text-[#1B873A] dark:text-[#4ADE80] font-semibold">
+              🏰 Castle Section Constructed: <strong>{level.castleComponentChanged}</strong>
             </div>
 
             <div className="pt-2 flex items-center justify-center space-x-3">
               <Link
                 href={`/worlds/${world.id}`}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-[#CBD5E1] hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 World Map
               </Link>
 
               <button
                 onClick={handleNextLevel}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-semibold shadow-md hover:from-purple-500 hover:to-indigo-500 flex items-center space-x-1.5 transition active:scale-95"
+                className="px-5 py-2.5 rounded-xl bg-[#3B82F6] hover:bg-[#2563EB] dark:bg-[#60A5FA] dark:hover:bg-[#3B82F6] text-white dark:text-[#0F172A] text-xs font-semibold shadow-md flex items-center space-x-1.5 transition active:scale-95"
               >
                 <span>Continue Journey</span>
                 <ArrowRight className="w-3.5 h-3.5" />

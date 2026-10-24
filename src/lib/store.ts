@@ -1,10 +1,60 @@
 import { create } from 'zustand';
 import { User, Session } from '@supabase/supabase-js';
-import { Language, QuizAttempt, WeakPoint, AuthUserProfile } from '@/types';
+import { Language, ThemeMode, QuizAttempt, WeakPoint, AuthUserProfile } from '@/types';
 import { supabase } from './supabaseClient';
 import { soundEffects } from './soundEffects';
+import { calculateLevelAndProgress } from './levelSystem';
+
+let transitionTimer: NodeJS.Timeout | null = null;
+
+function applyThemeToDocument(theme: ThemeMode, animate: boolean = true) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  const root = document.documentElement;
+
+  if (animate) {
+    root.classList.add('theme-transition');
+    if (transitionTimer) clearTimeout(transitionTimer);
+    transitionTimer = setTimeout(() => {
+      root.classList.remove('theme-transition');
+    }, 250);
+  }
+
+  if (theme === 'dark') {
+    root.classList.add('dark');
+    root.classList.remove('light');
+  } else {
+    root.classList.remove('dark');
+    root.classList.add('light');
+  }
+
+  root.setAttribute('data-theme', theme);
+  root.style.colorScheme = theme;
+
+  try {
+    localStorage.setItem('learnify_theme', theme);
+  } catch (_) {}
+}
+
+function getInitialTheme(): ThemeMode {
+  if (typeof window === 'undefined') return 'light';
+  try {
+    const saved = localStorage.getItem('learnify_theme');
+    if (saved === 'dark' || saved === 'light') return saved;
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+  } catch (_) {}
+  return 'light';
+}
 
 interface StoreState {
+  // Theme state
+  theme: ThemeMode;
+  toggleTheme: () => void;
+  setTheme: (theme: ThemeMode) => void;
+  initializeTheme: () => void;
+
   // Auth state
   user: User | null;
   session: Session | null;
@@ -40,6 +90,7 @@ interface StoreState {
   signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ success: boolean; message?: string }>;
   signInWithEmail: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   signOutUser: () => Promise<void>;
+  updateUsername: (newUsername: string) => Promise<{ success: boolean; error?: string }>;
 
   // Learner Actions
   setLanguage: (lang: Language) => void;
@@ -73,6 +124,23 @@ const initialZeroState = {
 };
 
 export const useStore = create<StoreState>((set, get) => ({
+  // Theme state
+  theme: 'light' as ThemeMode,
+  toggleTheme: () => {
+    const nextTheme: ThemeMode = get().theme === 'dark' ? 'light' : 'dark';
+    set({ theme: nextTheme });
+    applyThemeToDocument(nextTheme, true);
+  },
+  setTheme: (theme: ThemeMode) => {
+    set({ theme });
+    applyThemeToDocument(theme, true);
+  },
+  initializeTheme: () => {
+    const initialTheme = getInitialTheme();
+    set({ theme: initialTheme });
+    applyThemeToDocument(initialTheme, false);
+  },
+
   // Auth state defaults
   user: null,
   session: null,
@@ -336,6 +404,50 @@ export const useStore = create<StoreState>((set, get) => ({
     });
   },
 
+  updateUsername: async (newUsername: string) => {
+    const trimmed = newUsername.trim();
+    if (!trimmed || trimmed.length < 2 || trimmed.length > 30) {
+      return { success: false, error: 'Username must be between 2 and 30 characters.' };
+    }
+    if (trimmed.includes('@')) {
+      return { success: false, error: 'Usernames cannot contain email addresses.' };
+    }
+
+    const state = get();
+    if (state.user) {
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            username: trimmed,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', state.user.id);
+
+        if (error) {
+          return { success: false, error: error.message };
+        }
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    }
+
+    set((s) => ({
+      userProfile: s.userProfile
+        ? { ...s.userProfile, username: trimmed }
+        : {
+            id: s.user?.id || 'guest',
+            email: s.user?.email || null,
+            username: trimmed,
+            learnerLevel: s.learnerLevel,
+            totalXp: s.totalXp,
+            quizzesTaken: s.quizzesTaken,
+          },
+    }));
+
+    return { success: true };
+  },
+
   setLanguage: (lang: Language) => {
     set({ language: lang });
   },
@@ -343,7 +455,8 @@ export const useStore = create<StoreState>((set, get) => ({
   completeLevel: async (worldId: number, levelId: number, xpEarned: number) => {
     const state = get();
     const globalId = `world-${worldId}-level-${levelId}`;
-    const completedLevels = state.completedLevels.includes(globalId)
+    const isAlreadyCompleted = state.completedLevels.includes(globalId);
+    const completedLevels = isAlreadyCompleted
       ? state.completedLevels
       : [...state.completedLevels, globalId];
 
@@ -357,8 +470,10 @@ export const useStore = create<StoreState>((set, get) => ({
       unlockedWorlds.push(worldId + 1);
     }
 
-    const totalXp = state.totalXp + xpEarned;
-    const learnerLevel = Math.floor(totalXp / 200);
+    // Award XP only for new completion (prevent duplicate XP)
+    const effectiveXpGain = isAlreadyCompleted ? 0 : xpEarned;
+    const totalXp = state.totalXp + effectiveXpGain;
+    const { learnerLevel, xpToNextLevel } = calculateLevelAndProgress(totalXp);
 
     set({
       completedLevels,
@@ -366,6 +481,7 @@ export const useStore = create<StoreState>((set, get) => ({
       unlockedWorlds,
       totalXp,
       learnerLevel,
+      xpToNextLevel,
     });
 
     // Play celebration audio cue & sound effects
@@ -375,32 +491,40 @@ export const useStore = create<StoreState>((set, get) => ({
     if (state.user) {
       try {
         const userId = state.user.id;
-        // 1. Update profiles
-        await supabase
-          .from('profiles')
-          .update({
-            total_xp: totalXp,
-            learner_level: learnerLevel,
-            completed_levels: completedLevels,
-            unlocked_worlds: unlockedWorlds,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', userId);
+        // 1. Attempt RPC call for atomic & secure completion
+        const { error: rpcError } = await supabase.rpc('complete_castle_level', {
+          p_world_id: worldId,
+          p_level_id: levelId,
+          p_xp_reward: xpEarned,
+        });
 
-        // 2. Upsert user_progress
-        await supabase.from('user_progress').upsert(
-          {
-            user_id: userId,
-            world_id: worldId,
-            highest_level_unlocked: currentByWorld[worldId],
-            completed_levels: completedLevels.filter((id) =>
-              id.startsWith(`world-${worldId}-`)
-            ),
-            xp_earned: totalXp,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,world_id' }
-        );
+        if (rpcError) {
+          // Fallback to direct table sync if RPC not deployed yet
+          await supabase
+            .from('profiles')
+            .update({
+              total_xp: totalXp,
+              learner_level: learnerLevel,
+              completed_levels: completedLevels,
+              unlocked_worlds: unlockedWorlds,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', userId);
+
+          await supabase.from('user_progress').upsert(
+            {
+              user_id: userId,
+              world_id: worldId,
+              highest_level_unlocked: currentByWorld[worldId],
+              completed_levels: completedLevels.filter((id) =>
+                id.startsWith(`world-${worldId}-`)
+              ),
+              xp_earned: totalXp,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,world_id' }
+          );
+        }
       } catch (err) {
         console.warn('Supabase level completion sync notice:', err);
       }
@@ -412,7 +536,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const quizHistory = [attempt, ...state.quizHistory];
     const quizzesTaken = state.quizzesTaken + 1;
     const totalXp = state.totalXp + attempt.score * 5;
-    const learnerLevel = Math.floor(totalXp / 200);
+    const { learnerLevel, xpToNextLevel } = calculateLevelAndProgress(totalXp);
 
     // Update weak points for wrong concepts
     const newWeakPoints = [...state.weakPoints];
@@ -439,6 +563,7 @@ export const useStore = create<StoreState>((set, get) => ({
       quizzesTaken,
       totalXp,
       learnerLevel,
+      xpToNextLevel,
       weakPoints: newWeakPoints,
     });
 

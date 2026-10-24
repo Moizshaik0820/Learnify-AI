@@ -16,7 +16,7 @@ export default function WorldsOverviewPage() {
   const t = translations[language];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFD] flex">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] text-[#1E293B] dark:text-[#F1F5F9] flex transition-colors duration-200">
       {/* Sidebar */}
       <div className="hidden lg:block sticky top-0 h-screen overflow-y-auto">
         <Sidebar />
@@ -26,10 +26,10 @@ export default function WorldsOverviewPage() {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="fixed inset-0 bg-navy-900/50 backdrop-blur-xs"
+            className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="relative z-10 w-64 max-w-xs bg-white h-full shadow-2xl">
+          <div className="relative z-10 w-64 max-w-xs bg-white dark:bg-[#1E293B] h-full shadow-2xl">
             <Sidebar onCloseMobile={() => setMobileMenuOpen(false)} />
           </div>
         </div>
@@ -41,17 +41,17 @@ export default function WorldsOverviewPage() {
 
         <main className="p-6 lg:p-8 max-w-6xl mx-auto w-full space-y-6">
           {/* Breadcrumb */}
-          <div className="flex items-center space-x-2 text-xs text-slate-500">
-            <Link href="/" className="hover:text-purple-600 transition">Home</Link>
+          <div className="flex items-center space-x-2 text-xs text-slate-500 dark:text-[#CBD5E1]">
+            <Link href="/" className="hover:text-[#3B82F6] dark:hover:text-[#60A5FA] transition">Home</Link>
             <ChevronRight className="w-3.5 h-3.5" />
-            <span className="text-slate-800 font-semibold">{t.nav.worlds}</span>
+            <span className="text-slate-800 dark:text-[#F1F5F9] font-semibold">{t.nav.worlds}</span>
           </div>
 
           <div>
-            <h1 className="text-2xl font-black text-[#141C38] tracking-tight">
+            <h1 className="text-2xl font-black text-[#1E293B] dark:text-[#F1F5F9] tracking-tight">
               {t.worldsSection.title}
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-500 dark:text-[#CBD5E1] mt-1">
               Select a world to view its 24 sequential coding challenges and construct your kingdom.
             </p>
           </div>

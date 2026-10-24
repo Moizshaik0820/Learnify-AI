@@ -9,26 +9,18 @@ import { translations } from '@/data/translations';
 import {
   ChevronRight,
   RotateCcw,
-  Sparkles,
   Award,
   Zap,
-  CheckCircle2,
   ArrowRight,
   ShieldAlert,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
-import { soundEffects } from '@/lib/soundEffects';
 
 export default function RevisionCenterPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const language = useStore((s) => s.language);
   const weakPoints = useStore((s) => s.weakPoints);
-  const totalXp = useStore((s) => s.totalXp);
   const completedLevels = useStore((s) => s.completedLevels);
-  const markWeakPointPracticed = useStore((s) => s.markWeakPointPracticed);
   const t = translations[language];
-
-  const [activeSideMission, setActiveSideMission] = useState<any>(null);
 
   const sideMissions = [
     {
@@ -67,17 +59,8 @@ export default function RevisionCenterPage() {
     { name: 'Gothic Stylist', desc: 'Unlocked World 2 Typography', unlocked: true },
   ];
 
-  const handleCompleteMission = (mission: any) => {
-    markWeakPointPracticed(mission.concept);
-    try {
-      confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
-      soundEffects.playCelebrationChime();
-    } catch (_) {}
-    setActiveSideMission(null);
-  };
-
   return (
-    <div className="min-h-screen bg-[#F8FAFD] flex">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] text-[#1E293B] dark:text-[#F1F5F9] flex transition-colors duration-200">
       <div className="hidden lg:block sticky top-0 h-screen overflow-y-auto">
         <Sidebar />
       </div>
@@ -85,10 +68,10 @@ export default function RevisionCenterPage() {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="fixed inset-0 bg-navy-900/50 backdrop-blur-xs"
+            className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="relative z-10 w-64 max-w-xs bg-white h-full shadow-2xl">
+          <div className="relative z-10 w-64 max-w-xs bg-white dark:bg-[#1E293B] h-full shadow-2xl">
             <Sidebar onCloseMobile={() => setMobileMenuOpen(false)} />
           </div>
         </div>
@@ -99,29 +82,29 @@ export default function RevisionCenterPage() {
 
         <main className="p-6 lg:p-8 max-w-5xl mx-auto w-full space-y-6">
           {/* Breadcrumb */}
-          <div className="flex items-center space-x-2 text-xs text-slate-500">
-            <Link href="/" className="hover:text-purple-600 transition">Home</Link>
+          <div className="flex items-center space-x-2 text-xs text-slate-500 dark:text-[#CBD5E1]">
+            <Link href="/" className="hover:text-[#3B82F6] dark:hover:text-[#60A5FA] transition">Home</Link>
             <ChevronRight className="w-3.5 h-3.5" />
-            <span className="text-slate-800 font-semibold">{t.nav.revision}</span>
+            <span className="text-slate-800 dark:text-[#F1F5F9] font-semibold">{t.nav.revision}</span>
           </div>
 
           <div>
-            <h1 className="text-2xl font-black text-[#141C38] tracking-tight">
+            <h1 className="text-2xl font-black text-[#1E293B] dark:text-[#F1F5F9] tracking-tight">
               {t.nav.revision}
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-500 dark:text-[#CBD5E1] mt-1">
               Solidify weak concepts with tailored side-missions, earn bonus XP, and unlock legendary castle relics!
             </p>
           </div>
 
           {/* Weak Points Alert Banner */}
           {weakPoints.length > 0 && (
-            <div className="p-5 bg-gradient-to-r from-rose-50 to-orange-50 rounded-2xl border border-rose-200 shadow-sm space-y-3">
-              <div className="flex items-center space-x-2 text-rose-800 font-bold text-sm">
-                <ShieldAlert className="w-5 h-5 text-rose-600" />
+            <div className="p-5 bg-gradient-to-r from-orange-50/70 to-amber-50/70 dark:from-orange-950/40 dark:to-amber-950/30 rounded-2xl border border-orange-200 dark:border-orange-900/60 shadow-xs space-y-3">
+              <div className="flex items-center space-x-2 text-[#C2410C] dark:text-[#FB923C] font-bold text-sm">
+                <ShieldAlert className="w-5 h-5 text-[#F97316] dark:text-[#FB923C]" />
                 <span>{weakPoints.length} Concepts Identified for Revision</span>
               </div>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-[#CBD5E1]">
                 These concepts caused mistakes during your recent quizzes. Complete targeted practice missions below to clear them from your weak-points ledger:
               </p>
               <div className="flex flex-wrap gap-2 pt-1">
@@ -129,10 +112,10 @@ export default function RevisionCenterPage() {
                   <Link
                     key={wp.concept}
                     href={`/worlds/${wp.worldId}/${wp.levelId}`}
-                    className="px-3 py-1 bg-white rounded-full border border-rose-200 text-xs font-semibold text-rose-700 hover:bg-rose-100/60 shadow-xs transition flex items-center space-x-1"
+                    className="px-3 py-1 bg-white dark:bg-[#1E293B] rounded-full border border-orange-200 dark:border-orange-900/60 text-xs font-semibold text-[#C2410C] dark:text-[#FB923C] hover:bg-orange-100/60 dark:hover:bg-orange-950/80 shadow-xs transition flex items-center space-x-1"
                   >
                     <span>{wp.concept}</span>
-                    <ArrowRight className="w-3 h-3 text-rose-500" />
+                    <ArrowRight className="w-3 h-3 text-[#F97316] dark:text-[#FB923C]" />
                   </Link>
                 ))}
               </div>
@@ -141,8 +124,8 @@ export default function RevisionCenterPage() {
 
           {/* Revision Side Missions */}
           <div className="space-y-4">
-            <h3 className="font-bold text-base text-[#141C38] flex items-center space-x-2">
-              <Zap className="w-5 h-5 text-amber-500" />
+            <h3 className="font-bold text-base text-[#1E293B] dark:text-[#F1F5F9] flex items-center space-x-2">
+              <Zap className="w-5 h-5 text-[#F97316] dark:text-[#FB923C]" />
               <span>Revision Side Missions</span>
             </h3>
 
@@ -150,22 +133,22 @@ export default function RevisionCenterPage() {
               {sideMissions.map((sm) => (
                 <div
                   key={sm.id}
-                  className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between space-y-4 hover:shadow-md transition"
+                  className="bg-white dark:bg-[#1E293B] rounded-2xl border border-[#E2E8F0] dark:border-[#334155] p-5 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
+                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-900/60">
                         +{sm.xp} Bonus XP
                       </span>
-                      <RotateCcw className="w-4 h-4 text-purple-400" />
+                      <RotateCcw className="w-4 h-4 text-[#3B82F6] dark:text-[#60A5FA]" />
                     </div>
-                    <h4 className="font-bold text-sm text-[#141C38]">{sm.title}</h4>
-                    <p className="text-xs text-slate-500 leading-relaxed">{sm.desc}</p>
+                    <h4 className="font-bold text-sm text-[#1E293B] dark:text-[#F1F5F9]">{sm.title}</h4>
+                    <p className="text-xs text-slate-500 dark:text-[#CBD5E1] leading-relaxed">{sm.desc}</p>
                   </div>
 
                   <Link
                     href={`/worlds/${sm.worldId}/${sm.levelId}`}
-                    className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-md flex items-center justify-center space-x-1.5 transition active:scale-95"
+                    className="w-full py-2.5 rounded-xl bg-[#3B82F6] hover:bg-[#2563EB] dark:bg-[#60A5FA] dark:hover:bg-[#3B82F6] text-white dark:text-[#0F172A] text-xs font-semibold shadow-xs flex items-center justify-center space-x-1.5 transition active:scale-95"
                   >
                     <span>Start Mission</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -177,8 +160,8 @@ export default function RevisionCenterPage() {
 
           {/* Castle Achievements */}
           <div className="space-y-4 pt-4">
-            <h3 className="font-bold text-base text-[#141C38] flex items-center space-x-2">
-              <Award className="w-5 h-5 text-purple-600" />
+            <h3 className="font-bold text-base text-[#1E293B] dark:text-[#F1F5F9] flex items-center space-x-2">
+              <Award className="w-5 h-5 text-[#FACC15]" />
               <span>Castle Achievements</span>
             </h3>
 
@@ -188,16 +171,16 @@ export default function RevisionCenterPage() {
                   key={ach.name}
                   className={`p-4 rounded-2xl border transition-all ${
                     ach.unlocked
-                      ? 'bg-white border-purple-200 shadow-sm'
-                      : 'bg-slate-50 border-slate-200 opacity-50'
+                      ? 'bg-white dark:bg-[#1E293B] border-[#E2E8F0] dark:border-[#334155] shadow-xs'
+                      : 'bg-slate-50 dark:bg-[#111827] border-slate-200 dark:border-[#334155] opacity-50'
                   }`}
                 >
-                  <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center mb-2">
-                    <Award className="w-4 h-4" />
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 flex items-center justify-center mb-2">
+                    <Award className="w-4 h-4 text-[#FACC15]" />
                   </div>
-                  <h5 className="font-bold text-xs text-[#141C38]">{ach.name}</h5>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{ach.desc}</p>
-                  <span className="inline-block mt-2 text-[10px] font-bold text-emerald-600">
+                  <h5 className="font-bold text-xs text-[#1E293B] dark:text-[#F1F5F9]">{ach.name}</h5>
+                  <p className="text-[11px] text-slate-400 dark:text-[#94A3B8] mt-0.5">{ach.desc}</p>
+                  <span className="inline-block mt-2 text-[10px] font-bold text-[#22A447] dark:text-[#4ADE80]">
                     {ach.unlocked ? '✓ Unlocked' : 'Locked'}
                   </span>
                 </div>

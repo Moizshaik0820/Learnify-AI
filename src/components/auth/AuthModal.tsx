@@ -49,16 +49,16 @@ export const AuthModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
       <div
         className="fixed inset-0"
         onClick={closeAuthModal}
       />
-      <div className="relative z-10 w-full max-w-md bg-white rounded-3xl border border-purple-200 shadow-2xl p-6 sm:p-8 animate-in zoom-in-95 duration-200">
+      <div className="relative z-10 w-full max-w-md bg-white dark:bg-[#1E293B] rounded-3xl border border-[#E2E8F0] dark:border-[#334155] shadow-2xl p-6 sm:p-8 animate-in zoom-in-95 duration-200 transition-colors">
         {/* Close Button */}
         <button
           onClick={closeAuthModal}
-          className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+          className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
           aria-label="Close modal"
         >
           <X className="w-5 h-5" />
@@ -66,27 +66,27 @@ export const AuthModal: React.FC = () => {
 
         {/* Brand Header */}
         <div className="flex items-center space-x-2.5 mb-2">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-600 flex items-center justify-center text-white shadow-md shadow-purple-500/25">
+          <div className="w-9 h-9 rounded-xl bg-[#3B82F6] dark:bg-[#60A5FA] flex items-center justify-center text-white dark:text-[#0F172A] shadow-md shadow-blue-500/25">
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-extrabold text-[#141C38] tracking-tight">
+            <h2 className="text-xl font-extrabold text-[#1E293B] dark:text-[#F1F5F9] tracking-tight">
               Learnify AI
             </h2>
-            <p className="text-[11px] text-purple-600 font-semibold uppercase tracking-wider">
+            <p className="text-[11px] text-[#2563EB] dark:text-[#93C5FD] font-semibold uppercase tracking-wider">
               Supabase Auth & PostgreSQL
             </p>
           </div>
         </div>
 
-        <p className="text-xs text-slate-500 mb-6">
+        <p className="text-xs text-slate-500 dark:text-[#CBD5E1] mb-6">
           {mode === 'signup'
             ? 'Create your account. A blank Mind Map and state starting at 0 will be provisioned automatically.'
             : 'Sign in with your email and password to access your castle progress.'}
         </p>
 
         {/* Mode Toggle Tabs */}
-        <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-6">
+        <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-[#111827] rounded-xl mb-6">
           <button
             type="button"
             onClick={() => {
@@ -95,8 +95,8 @@ export const AuthModal: React.FC = () => {
             }}
             className={`py-2 text-xs font-bold rounded-lg transition ${
               mode === 'signup'
-                ? 'bg-white text-purple-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white dark:bg-[#1E293B] text-[#1D4ED8] dark:text-[#93C5FD] shadow-xs'
+                : 'text-slate-600 dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             Create Account
@@ -109,8 +109,8 @@ export const AuthModal: React.FC = () => {
             }}
             className={`py-2 text-xs font-bold rounded-lg transition ${
               mode === 'signin'
-                ? 'bg-white text-purple-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white dark:bg-[#1E293B] text-[#1D4ED8] dark:text-[#93C5FD] shadow-xs'
+                : 'text-slate-600 dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             Sign In
@@ -119,14 +119,14 @@ export const AuthModal: React.FC = () => {
 
         {/* Alert feedback */}
         {authError && (
-          <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start space-x-2 text-xs text-rose-700">
+          <div className="mb-4 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl flex items-start space-x-2 text-xs text-rose-700 dark:text-rose-300">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>{authError}</span>
           </div>
         )}
 
         {authSuccessMessage && (
-          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start space-x-2 text-xs text-emerald-800">
+          <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-xl flex items-start space-x-2 text-xs text-emerald-800 dark:text-emerald-300">
             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
             <span>{authSuccessMessage}</span>
           </div>
@@ -136,11 +136,11 @@ export const AuthModal: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === 'signup' && (
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 dark:text-[#CBD5E1] mb-1.5">
                 Full Name / Learner Tag
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-[#94A3B8]">
                   <User className="w-4 h-4" />
                 </div>
                 <input
@@ -148,18 +148,18 @@ export const AuthModal: React.FC = () => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Castle Architect"
-                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs sm:text-sm text-slate-800 dark:text-[#F1F5F9] placeholder-slate-400 dark:placeholder-[#94A3B8] outline-none focus:bg-white dark:focus:bg-[#111827] focus:border-[#3B82F6] dark:focus:border-[#60A5FA] focus:ring-2 focus:ring-[#DBEAFE] dark:focus:ring-blue-900/40 transition"
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 dark:text-[#CBD5E1] mb-1.5">
               Email Address
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-[#94A3B8]">
                 <Mail className="w-4 h-4" />
               </div>
               <input
@@ -168,17 +168,17 @@ export const AuthModal: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@domain.com"
-                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs sm:text-sm text-slate-800 dark:text-[#F1F5F9] placeholder-slate-400 dark:placeholder-[#94A3B8] outline-none focus:bg-white dark:focus:bg-[#111827] focus:border-[#3B82F6] dark:focus:border-[#60A5FA] focus:ring-2 focus:ring-[#DBEAFE] dark:focus:ring-blue-900/40 transition"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 dark:text-[#CBD5E1] mb-1.5">
               Password
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-[#94A3B8]">
                 <Lock className="w-4 h-4" />
               </div>
               <input
@@ -187,7 +187,7 @@ export const AuthModal: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs sm:text-sm text-slate-800 dark:text-[#F1F5F9] placeholder-slate-400 dark:placeholder-[#94A3B8] outline-none focus:bg-white dark:focus:bg-[#111827] focus:border-[#3B82F6] dark:focus:border-[#60A5FA] focus:ring-2 focus:ring-[#DBEAFE] dark:focus:ring-blue-900/40 transition"
               />
             </div>
           </div>
@@ -195,7 +195,7 @@ export const AuthModal: React.FC = () => {
           <button
             type="submit"
             disabled={authLoading}
-            className="w-full mt-2 py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-purple-500/25 transition active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-60"
+            className="w-full mt-2 py-3 px-4 rounded-xl bg-[#3B82F6] hover:bg-[#2563EB] dark:bg-[#60A5FA] dark:hover:bg-[#3B82F6] text-white dark:text-[#0F172A] font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-60"
           >
             {authLoading ? (
               <>
@@ -208,7 +208,7 @@ export const AuthModal: React.FC = () => {
           </button>
         </form>
 
-        <div className="mt-5 text-center text-xs text-slate-400">
+        <div className="mt-5 text-center text-xs text-slate-400 dark:text-[#94A3B8]">
           Protected by Supabase Row Level Security (RLS) policies.
         </div>
       </div>

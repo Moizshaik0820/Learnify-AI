@@ -1,7 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Play, RotateCcw, HelpCircle, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Play,
+  RotateCcw,
+  HelpCircle,
+  Eye,
+  CheckCircle2,
+  AlertTriangle,
+  Copy,
+  Lock,
+  Check,
+} from 'lucide-react';
+import { CastleCopyProtectionNotice } from './CastleCopyProtectionNotice';
 
 interface CodeEditorProps {
   initialCode: string;
@@ -11,6 +22,7 @@ interface CodeEditorProps {
   onSuccessNext?: () => void;
   isPassed: boolean;
   validationMessage?: string;
+  onTriggerCopyNotice?: () => void;
 }
 
 export const CodeEditor: React.FC<CodeEditorProps> = ({
@@ -21,11 +33,34 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onSuccessNext,
   isPassed,
   validationMessage,
+  onTriggerCopyNotice,
 }) => {
   const [code, setCode] = useState(initialCode);
   const [showHint, setShowHint] = useState(false);
   const [showSolution, setShowSolution] = useState(false);
   const [currentHintIndex, setCurrentHintIndex] = useState(0);
+  const [showCopyNotice, setShowCopyNotice] = useState(false);
+  const [copiedReview, setCopiedReview] = useState(false);
+
+  const noticeTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setCode(initialCode);
+    setShowHint(false);
+    setShowSolution(false);
+  }, [initialCode]);
+
+  const triggerCopyNotice = () => {
+    if (onTriggerCopyNotice) {
+      onTriggerCopyNotice();
+      return;
+    }
+    setShowCopyNotice(true);
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = setTimeout(() => {
+      setShowCopyNotice(false);
+    }, 3200);
+  };
 
   const lines = code.split('\n');
 
@@ -33,6 +68,61 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     const newCode = e.target.value;
     setCode(newCode);
     onApplyCss(newCode);
+  };
+
+  // Keyboard navigation & copy prevention
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Intercept Ctrl+C / Cmd+C during active challenge gameplay
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+      if (!isPassed) {
+        e.preventDefault();
+        triggerCopyNotice();
+      }
+    }
+
+    // Support Tab indentation for smooth code editing
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const target = e.currentTarget;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      const updated = code.substring(0, start) + '  ' + code.substring(end);
+      setCode(updated);
+      onApplyCss(updated);
+      setTimeout(() => {
+        target.selectionStart = target.selectionEnd = start + 2;
+      }, 0);
+    }
+  };
+
+  // Prevent drag selection copy or clipboard write in challenge
+  const handleCopy = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!isPassed) {
+      e.preventDefault();
+      triggerCopyNotice();
+    }
+  };
+
+  // Prevent right-click context menu in active gameplay
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!isPassed) {
+      e.preventDefault();
+      triggerCopyNotice();
+    }
+  };
+
+  const handleCopyButtonClick = () => {
+    if (!isPassed) {
+      triggerCopyNotice();
+    } else {
+      // Allowed in review mode after challenge completion
+      try {
+        navigator.clipboard.writeText(code).then(() => {
+          setCopiedReview(true);
+          setTimeout(() => setCopiedReview(false), 2000);
+        });
+      } catch (_) {}
+    }
   };
 
   const handleReset = () => {
@@ -56,7 +146,13 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0F172A] rounded-2xl border border-slate-700/80 shadow-xl overflow-hidden">
+    <div className="flex flex-col h-full bg-[#0F172A] rounded-2xl border border-slate-700/80 shadow-xl overflow-hidden relative">
+      {/* Internal Copy Notice Toast */}
+      <CastleCopyProtectionNotice
+        isVisible={showCopyNotice}
+        onDismiss={() => setShowCopyNotice(false)}
+      />
+
       {/* Editor Top Bar */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#1E293B] border-b border-slate-700 text-xs">
         <div className="flex items-center space-x-2">
@@ -69,9 +165,43 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         </div>
 
         <div className="flex items-center space-x-2">
+          {/* Copy Code Button: explicitly disabled with tooltip during challenge */}
+          <button
+            onClick={handleCopyButtonClick}
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded-md border text-xs transition ${
+              isPassed
+                ? 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-emerald-300'
+                : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700 text-slate-400 cursor-not-allowed opacity-80'
+            }`}
+            title={
+              isPassed
+                ? 'Copy completed code'
+                : 'Code copying is disabled during castle challenges. Build it yourself to earn XP!'
+            }
+          >
+            {isPassed ? (
+              copiedReview ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy Code</span>
+                </>
+              )
+            ) : (
+              <>
+                <Lock className="w-3.5 h-3.5 text-amber-400" />
+                <span className="line-through decoration-amber-400/80">Copy Code</span>
+              </>
+            )}
+          </button>
+
           <button
             onClick={handleShowHint}
-            className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-purple-950/60 hover:bg-purple-900 border border-purple-500/40 text-purple-300 transition"
+            className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-blue-950/60 hover:bg-blue-900 border border-blue-500/40 text-blue-300 transition"
             title="Get a hint"
           >
             <HelpCircle className="w-3.5 h-3.5" />
@@ -81,7 +211,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <button
             onClick={handleRevealSolution}
             className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 transition"
-            title="Reveal solution"
+            title="Inspect solution reference"
           >
             <Eye className="w-3.5 h-3.5" />
             <span>Solution</span>
@@ -99,7 +229,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       </div>
 
       {/* Editor Code Area */}
-      <div className="relative flex-1 flex font-mono text-sm leading-6 overflow-hidden">
+      <div
+        onContextMenu={handleContextMenu}
+        className="relative flex-1 flex font-mono text-sm leading-6 overflow-hidden"
+      >
         {/* Line Numbers */}
         <div className="w-10 py-3 bg-[#0D1322] text-slate-500 select-none text-right pr-2 text-xs border-r border-slate-800/80">
           {lines.map((_, i) => (
@@ -107,29 +240,34 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           ))}
         </div>
 
-        {/* Text Area */}
+        {/* Text Area: Normal editing & typing preserved, copy intercepted during challenge */}
         <textarea
           value={code}
           onChange={handleCodeChange}
+          onKeyDown={handleKeyDown}
+          onCopy={handleCopy}
           spellCheck={false}
-          className="flex-1 p-3 bg-transparent text-emerald-300 font-mono text-sm resize-none outline-none leading-6 selection:bg-purple-600/40 selection:text-white"
+          className="flex-1 p-3 bg-transparent text-emerald-300 font-mono text-sm resize-none outline-none leading-6 selection:bg-[#3B82F6]/40 selection:text-white"
         />
       </div>
 
       {/* Hint Alert Box if active */}
       {showHint && hints.length > 0 && (
-        <div className="px-4 py-2.5 bg-purple-950/40 border-t border-purple-900/60 text-xs text-purple-200 flex items-start space-x-2">
-          <HelpCircle className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+        <div className="px-4 py-2.5 bg-blue-950/40 border-t border-blue-900/60 text-xs text-blue-200 flex items-start space-x-2">
+          <HelpCircle className="w-4 h-4 text-[#3B82F6] shrink-0 mt-0.5" />
           <div>
-            <strong className="text-purple-300">Architect&apos;s Hint:</strong> {hints[currentHintIndex]}
+            <strong className="text-blue-300">Architect&apos;s Hint:</strong> {hints[currentHintIndex]}
           </div>
         </div>
       )}
 
       {/* Solution Banner if active */}
       {showSolution && (
-        <div className="px-4 py-2 bg-indigo-950/60 border-t border-indigo-800 text-xs text-indigo-200">
-          Solution applied to editor. Inspect and understand how each rule alters the castle!
+        <div className="px-4 py-2 bg-slate-900 border-t border-blue-800/80 text-xs text-blue-200 flex items-center justify-between">
+          <span>Solution applied to editor. Build it yourself to master the concept!</span>
+          <span className="text-[10px] text-amber-400 font-bold bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800">
+            Copying Disabled
+          </span>
         </div>
       )}
 
@@ -138,8 +276,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         {/* Feedback message */}
         <div className="flex items-center space-x-2 text-xs">
           {isPassed ? (
-            <div className="flex items-center space-x-1.5 text-emerald-400 font-medium">
-              <CheckCircle2 className="w-4 h-4" />
+            <div className="flex items-center space-x-1.5 text-[#22A447] font-semibold">
+              <CheckCircle2 className="w-4 h-4 text-[#22A447]" />
               <span>Castle element reinforced! Challenge passed.</span>
             </div>
           ) : (
@@ -150,11 +288,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           )}
         </div>
 
-        {/* Buttons */}
+        {/* Buttons (Pixel Blue for primary, Grass Green for Passed/Next) */}
         <div className="flex items-center space-x-3">
           <button
             onClick={() => onApplyCss(code)}
-            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-md shadow-blue-900/40 transition active:scale-95"
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-semibold shadow-md shadow-blue-900/40 transition active:scale-95"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
             <span>Apply to Castle</span>
@@ -163,7 +301,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           {isPassed && onSuccessNext && (
             <button
               onClick={onSuccessNext}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-semibold shadow-md shadow-purple-900/40 transition active:scale-95 animate-bounce"
+              className="px-4 py-2 rounded-xl bg-[#22A447] hover:bg-[#1B873A] text-white text-xs font-semibold shadow-md shadow-emerald-900/40 transition active:scale-95 animate-bounce"
             >
               Take Quiz & Unlock →
             </button>

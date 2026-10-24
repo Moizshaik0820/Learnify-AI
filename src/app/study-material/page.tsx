@@ -110,24 +110,16 @@ export default function StudyMaterialPage() {
     setErrorMsg('');
   };
 
-  // Start fresh
-  const handleReset = () => {
-    setStep('input');
-    setAnalysisData(null);
-    setSummaryData(null);
-    setErrorMsg('');
-  };
-
   return (
-    <div className="min-h-screen bg-[#F8FAFD] flex">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] text-[#1E293B] dark:text-[#F1F5F9] flex transition-colors duration-200">
       <div className="hidden lg:block sticky top-0 h-screen overflow-y-auto">
         <Sidebar />
       </div>
 
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div className="fixed inset-0 bg-navy-900/50 backdrop-blur-xs" onClick={() => setMobileMenuOpen(false)} />
-          <div className="relative z-10 w-64 max-w-xs bg-white h-full shadow-2xl">
+          <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs" onClick={() => setMobileMenuOpen(false)} />
+          <div className="relative z-10 w-64 max-w-xs bg-white dark:bg-[#1E293B] h-full shadow-2xl">
             <Sidebar onCloseMobile={() => setMobileMenuOpen(false)} />
           </div>
         </div>
@@ -138,12 +130,12 @@ export default function StudyMaterialPage() {
 
         <main className="p-6 lg:p-8 max-w-5xl mx-auto w-full space-y-6">
           {/* Breadcrumb */}
-          <div className="flex items-center space-x-2 text-xs text-slate-500">
-            <Link href="/" className="hover:text-purple-600 transition">
+          <div className="flex items-center space-x-2 text-xs text-slate-500 dark:text-[#CBD5E1]">
+            <Link href="/" className="hover:text-[#3B82F6] dark:hover:text-[#60A5FA] transition">
               Home
             </Link>
             <ChevronRight className="w-3.5 h-3.5" />
-            <span className="text-slate-800 font-semibold">{t.nav.study}</span>
+            <span className="text-slate-800 dark:text-[#F1F5F9] font-semibold">{t.nav.study}</span>
           </div>
 
           <WorkspaceHeader />
@@ -154,8 +146,8 @@ export default function StudyMaterialPage() {
           {/* Loading indicator */}
           {isLoading && (
             <div className="max-w-3xl mx-auto flex items-center justify-center gap-2 py-8">
-              <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />
-              <span className="text-sm text-gray-500 font-medium">
+              <Loader2 className="w-5 h-5 text-[#3B82F6] dark:text-[#60A5FA] animate-spin" />
+              <span className="text-sm text-slate-500 dark:text-[#CBD5E1] font-medium">
                 {step === 'input' || step === 'choose'
                   ? 'Analyzing your material...'
                   : 'Generating summary with AI...'}
@@ -165,7 +157,7 @@ export default function StudyMaterialPage() {
 
           {/* Error */}
           {errorMsg && (
-            <div className="max-w-3xl mx-auto p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start space-x-2 text-xs text-rose-700">
+            <div className="max-w-3xl mx-auto p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl flex items-start space-x-2 text-xs text-rose-700 dark:text-rose-300">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{errorMsg}</span>
             </div>

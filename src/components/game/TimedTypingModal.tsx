@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Timer, Zap, CheckCircle2, RotateCcw, AlertCircle, Sparkles } from 'lucide-react';
+import { Timer, Zap, CheckCircle2, RotateCcw, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundEffects } from '@/lib/soundEffects';
 
@@ -78,42 +78,33 @@ export const TimedTypingModal: React.FC<TimedTypingModalProps> = ({
     // Check prefix correctness
     if (currentExpectedLine.startsWith(val)) {
       setLineError(false);
-      setCorrectKeyStrokes((k) => k + 1);
-
-      // If finished typing line exactly
-      if (val === currentExpectedLine) {
-        const nextIndex = currentLineIndex + 1;
-        setInputLines([...inputLines, val]);
-        setCurrentLineInput('');
-
-        if (nextIndex >= targetLines.length) {
-          // Completed all lines!
-          try {
-            confetti({ particleCount: 60, spread: 50, origin: { y: 0.6 } });
-            soundEffects.playCelebrationChime();
-          } catch (_) {}
-
-          const accuracy = Math.round(
-            (correctKeyStrokes / Math.max(totalKeyStrokes, 1)) * 100
-          );
-          const elapsed = Math.max(timeLimitSeconds - timeLeft, 5);
-          const wordCount = targetCode.split(/\s+/).length;
-          const wpm = Math.round((wordCount / elapsed) * 60);
-
-          onComplete(accuracy, wpm);
-        } else {
-          setCurrentLineIndex(nextIndex);
-        }
-      }
+      setCorrectKeyStrokes((c) => c + 1);
     } else {
       setLineError(true);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Intercept Enter to advance line if matched
     if (e.key === 'Enter') {
-      if (currentLineInput !== currentExpectedLine) {
-        // Punish incorrect submission: clear whole line and increment attempt
+      if (currentLineInput.trim() === currentExpectedLine.trim()) {
+        const nextIndex = currentLineIndex + 1;
+        setInputLines((prev) => [...prev, currentLineInput]);
+        setCurrentLineInput('');
+        setCurrentLineIndex(nextIndex);
+        setLineError(false);
+        soundEffects.playSuccessPing();
+
+        // Check if all lines completed
+        if (nextIndex >= targetLines.length) {
+          try {
+            confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+          } catch (_) {}
+          const accuracy = Math.round((correctKeyStrokes / Math.max(totalKeyStrokes, 1)) * 100);
+          onComplete(accuracy, 40);
+        }
+      } else {
+        // Reset line on Enter if wrong
         setLineError(true);
         setCurrentLineInput('');
         setAttempts((a) => a + 1);
@@ -122,32 +113,29 @@ export const TimedTypingModal: React.FC<TimedTypingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-900/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg bg-white rounded-2xl border border-purple-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 dark:bg-black/80 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg bg-white dark:bg-[#1E293B] rounded-2xl border border-[#E2E8F0] dark:border-[#334155] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
-        {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-purple-700 to-indigo-700 text-white flex items-center justify-between">
+        {/* Modal Header */}
+        <div className="px-6 py-4 bg-[#3B82F6] dark:bg-[#1E3A5F] text-white flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Zap className="w-5 h-5 text-amber-300" />
-            <h3 className="font-bold text-base">Speed Code Typing Challenge</h3>
+            <Zap className="w-5 h-5 text-[#FACC15] fill-[#FACC15]" />
+            <div>
+              <h3 className="font-bold text-sm text-white">Rapid Castle Coding Challenge</h3>
+              <p className="text-[11px] text-blue-100 dark:text-blue-200">Type with accuracy to reinforce the stonework</p>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-3 text-xs">
-            {/* Practice Mode Toggle */}
+          <div className="flex items-center space-x-3">
             <button
               onClick={() => setPracticeMode(!practiceMode)}
-              className={`px-2.5 py-1 rounded-full border transition ${
-                practiceMode
-                  ? 'bg-amber-400 text-slate-900 border-amber-300 font-semibold'
-                  : 'bg-white/20 hover:bg-white/30 border-white/30 text-white'
-              }`}
+              className="text-xs text-blue-100 hover:text-white underline font-medium"
             >
-              {practiceMode ? 'Practice Mode: ON' : 'Practice Mode: OFF'}
+              {practiceMode ? 'Timed Mode' : 'Practice Mode'}
             </button>
 
-            {/* Timer */}
             {!practiceMode && (
-              <div className="flex items-center space-x-1 font-mono font-bold text-amber-300 bg-black/30 px-2.5 py-1 rounded-full">
+              <div className="flex items-center space-x-1 font-mono font-bold text-[#FACC15] bg-black/25 px-2.5 py-1 rounded-full border border-amber-300/30">
                 <Timer className="w-3.5 h-3.5" />
                 <span>{timeLeft}s</span>
               </div>
@@ -157,15 +145,15 @@ export const TimedTypingModal: React.FC<TimedTypingModalProps> = ({
 
         {/* Content Body */}
         <div className="p-6 space-y-4">
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-slate-600 dark:text-[#CBD5E1]">
             Solidify muscle memory! Type each line of CSS code exactly as shown. If you make a mistake or the timer expires, you must retype the whole line.
           </p>
 
           {/* Code Typing Box */}
-          <div className="bg-slate-900 rounded-xl p-4 font-mono text-sm border border-slate-800 space-y-2">
+          <div className="bg-slate-900 dark:bg-[#111827] rounded-xl p-4 font-mono text-sm border border-slate-800 dark:border-[#334155] space-y-2">
             {/* Previously completed lines */}
             {inputLines.map((line, idx) => (
-              <div key={idx} className="flex items-center space-x-2 text-emerald-400">
+              <div key={idx} className="flex items-center space-x-2 text-[#22A447] dark:text-[#4ADE80]">
                 <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                 <span>{line}</span>
               </div>
@@ -174,11 +162,14 @@ export const TimedTypingModal: React.FC<TimedTypingModalProps> = ({
             {/* Currently active line to type */}
             {currentLineIndex < targetLines.length && (
               <div className="space-y-1">
-                <div className="text-slate-400 text-xs flex items-center justify-between">
+                <div className="text-slate-400 dark:text-[#94A3B8] text-xs flex items-center justify-between">
                   <span>Line {currentLineIndex + 1} of {targetLines.length}:</span>
-                  <span className="text-purple-300 font-semibold">Attempt {attempts}</span>
+                  <span className="text-blue-300 font-semibold">Attempt {attempts}</span>
                 </div>
-                <div className="p-2 bg-slate-800/80 rounded border border-purple-500/40 text-purple-200">
+                <div
+                  onCopy={(e) => e.preventDefault()}
+                  className="p-2 bg-slate-800/80 dark:bg-[#1A2536] rounded border border-blue-500/40 text-blue-200 select-none"
+                >
                   {currentExpectedLine}
                 </div>
 
@@ -189,11 +180,12 @@ export const TimedTypingModal: React.FC<TimedTypingModalProps> = ({
                     value={currentLineInput}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
+                    onPaste={(e) => e.preventDefault()} // Disallow pasting: must type it out
                     placeholder="Type the line here..."
-                    className={`w-full px-3 py-2 rounded bg-slate-950 font-mono text-sm text-white outline-none border transition ${
+                    className={`w-full px-3 py-2 rounded bg-slate-950 dark:bg-[#0A0F1D] font-mono text-sm text-white outline-none border transition ${
                       lineError
                         ? 'border-rose-500 ring-2 ring-rose-500/30'
-                        : 'border-slate-700 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400'
+                        : 'border-slate-700 dark:border-slate-600 focus:border-[#3B82F6] dark:focus:border-[#60A5FA] focus:ring-1 focus:ring-[#3B82F6]'
                     }`}
                   />
                   {lineError && (
@@ -208,18 +200,18 @@ export const TimedTypingModal: React.FC<TimedTypingModalProps> = ({
           </div>
 
           {/* Stats Bar */}
-          <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-[#CBD5E1] pt-1">
             <span>Accuracy: {Math.round((correctKeyStrokes / Math.max(totalKeyStrokes, 1)) * 100)}%</span>
             <span>Completed: {currentLineIndex} / {targetLines.length} lines</span>
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <div className="px-6 py-3 bg-slate-50 dark:bg-[#111827] border-t border-slate-100 dark:border-[#334155] flex items-center justify-between">
           {onSkip ? (
             <button
               onClick={onSkip}
-              className="text-xs text-slate-500 hover:text-slate-700 underline"
+              className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 underline"
             >
               Skip to Quiz
             </button>
@@ -231,7 +223,7 @@ export const TimedTypingModal: React.FC<TimedTypingModalProps> = ({
                 setCurrentLineInput('');
                 setLineError(false);
               }}
-              className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-200 rounded-lg flex items-center space-x-1"
+              className="px-3 py-1.5 text-xs text-slate-600 dark:text-[#CBD5E1] hover:bg-slate-200 dark:hover:bg-[#263449] rounded-lg flex items-center space-x-1 transition"
             >
               <RotateCcw className="w-3 h-3" />
               <span>Clear Line</span>
