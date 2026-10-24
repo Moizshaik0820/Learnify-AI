@@ -2,7 +2,7 @@
  * Wrapper around the Google Gemini generative AI endpoint.
  * Expects env variables:
  *   AI_ENDPOINT – base URL (without ?key=…), e.g.
- *       https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent
+ *       https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
  *   AI_API_KEY – your Gemini API key.
  */
 export async function callAI(prompt: string): Promise<string> {
@@ -16,20 +16,13 @@ export async function callAI(prompt: string): Promise<string> {
   let endpoint =
     process.env.AI_ENDPOINT ||
     process.env.NEXT_PUBLIC_AI_ENDPOINT ||
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-  // Replace sunset or deprecated model references (like gemini-1.5-flash or gemini-2.5-flash)
-  // with current active models
-  if (
-    endpoint.includes('gemini-1.5') ||
-    endpoint.includes('gemini-2.5') ||
-    endpoint.includes('gemini-3.8-flash')
-  ) {
-    endpoint = endpoint.replace(
-      /gemini-(?:1\.5|2\.5|3\.8)-flash/g,
-      'gemini-3.5-flash'
-    );
-  }
+  // Replace any deprecated/sunset model names with gemini-2.0-flash
+  endpoint = endpoint.replace(
+    /gemini-(?:1\.5|2\.5|3\.5|3\.8)-flash(?:-(?:latest|preview))?/g,
+    'gemini-2.0-flash'
+  );
 
   if (!apiKey) {
     throw new Error(
@@ -39,9 +32,8 @@ export async function callAI(prompt: string): Promise<string> {
 
   const candidateEndpoints = [
     endpoint,
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent',
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent',
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent',
   ];
 
   // Remove duplicates
