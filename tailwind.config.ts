@@ -29,6 +29,14 @@ const config: Config = {
           "cyan-light": "#22D3EE",
           "cyan-subtle": "#ECFEFF",
         },
+        // premium light‑theme palette
+        lavender: "#C4B5FD",
+        "lavender-light": "#EDE9FE",
+        "lavender-subtle": "#F5F3FF",
+        "gray-50": "#F8FAFD",
+        "gray-100": "#F1F5F9",
+        "gray-200": "#E2E8F0",
+        "gray-300": "#CBD5E1",
         border: "var(--border-color)",
       },
       borderRadius: {
