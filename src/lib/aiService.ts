@@ -2,7 +2,7 @@
  * Wrapper around the Google Gemini generative AI endpoint.
  * Expects env variables:
  *   AI_ENDPOINT – base URL (without ?key=…), e.g.
- *       https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
+ *       https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent
  *   AI_API_KEY – your Gemini API key.
  */
 export async function callAI(prompt: string): Promise<string> {
@@ -16,12 +16,12 @@ export async function callAI(prompt: string): Promise<string> {
   let endpoint =
     process.env.AI_ENDPOINT ||
     process.env.NEXT_PUBLIC_AI_ENDPOINT ||
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
 
-  // Replace any deprecated/sunset model names with gemini-2.0-flash
+  // Replace any deprecated/sunset model names with gemini-3.8-flash
   endpoint = endpoint.replace(
-    /gemini-(?:1\.5|2\.5|3\.5|3\.8)-flash(?:-(?:latest|preview))?/g,
-    'gemini-2.0-flash'
+    /gemini-(?:1\.5|2\.0|2\.5|3\.0|3\.5)-flash(?:-(?:latest|preview|lite))?/g,
+    'gemini-3.8-flash'
   );
 
   if (!apiKey) {
@@ -32,8 +32,8 @@ export async function callAI(prompt: string): Promise<string> {
 
   const candidateEndpoints = [
     endpoint,
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-lite:generateContent',
   ];
 
   // Remove duplicates
