@@ -6,12 +6,25 @@
  *   AI_API_KEY – your Gemini API key.
  */
 export async function callAI(prompt: string): Promise<string> {
-  const endpoint = process.env.AI_ENDPOINT;
-  const apiKey = process.env.AI_API_KEY;
+  const apiKey =
+    process.env.AI_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.NEXT_PUBLIC_AI_API_KEY ||
+    process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
-  if (!endpoint || !apiKey) {
+  let endpoint =
+    process.env.AI_ENDPOINT ||
+    process.env.NEXT_PUBLIC_AI_ENDPOINT ||
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+
+  if (endpoint.includes('gemini-3.8')) {
+    endpoint = endpoint.replace('gemini-3.8-flash', 'gemini-1.5-flash');
+  }
+
+  if (!apiKey) {
     throw new Error(
-      'AI credentials missing. Set AI_ENDPOINT and AI_API_KEY in .env.local.'
+      'AI credentials missing. Set AI_API_KEY or GEMINI_API_KEY in Vercel Environment Variables, then redeploy.'
     );
   }
 
