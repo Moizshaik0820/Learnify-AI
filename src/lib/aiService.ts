@@ -2,7 +2,7 @@
  * Wrapper around the Google Gemini generative AI endpoint.
  * Expects env variables:
  *   AI_ENDPOINT – base URL (without ?key=…), e.g.
- *       https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent
+ *       https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent
  *   AI_API_KEY – your Gemini API key.
  */
 export async function callAI(prompt: string): Promise<string> {
@@ -16,10 +16,19 @@ export async function callAI(prompt: string): Promise<string> {
   let endpoint =
     process.env.AI_ENDPOINT ||
     process.env.NEXT_PUBLIC_AI_ENDPOINT ||
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
 
-  if (endpoint.includes('gemini-3.8')) {
-    endpoint = endpoint.replace('gemini-3.8-flash', 'gemini-1.5-flash');
+  // Replace sunset or deprecated model references (like gemini-1.5-flash or gemini-2.5-flash)
+  // with current active models
+  if (
+    endpoint.includes('gemini-1.5') ||
+    endpoint.includes('gemini-2.5') ||
+    endpoint.includes('gemini-3.8-flash')
+  ) {
+    endpoint = endpoint.replace(
+      /gemini-(?:1\.5|2\.5|3\.8)-flash/g,
+      'gemini-3.5-flash'
+    );
   }
 
   if (!apiKey) {
@@ -28,8 +37,15 @@ export async function callAI(prompt: string): Promise<string> {
     );
   }
 
-  // Gemini expects the key as a query parameter
-  const url = `${endpoint}?key=${apiKey}`;
+  const candidateEndpoints = [
+    endpoint,
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent',
+  ];
+
+  // Remove duplicates
+  const endpointsToTry = Array.from(new Set(candidateEndpoints));
 
   const body = {
     contents: [
@@ -43,36 +59,45 @@ export async function callAI(prompt: string): Promise<string> {
     },
   };
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  let lastError = 'AI service error';
 
-  if (!res.ok) {
-    const errText = await res.text();
-    console.error('Gemini API error:', res.status, errText);
-
-    // Try to extract a useful message from the error
-    let detail = `AI service error (${res.status})`;
+  for (const targetEndpoint of endpointsToTry) {
     try {
-      const errJson = JSON.parse(errText);
-      detail = errJson?.error?.message || detail;
-    } catch {
-      // use default detail
+      const url = `${targetEndpoint}?key=${apiKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`Gemini API error for ${targetEndpoint}:`, res.status, errText);
+
+        try {
+          const errJson = JSON.parse(errText);
+          lastError = errJson?.error?.message || `AI service error (${res.status})`;
+        } catch {
+          lastError = `AI service error (${res.status})`;
+        }
+        // If 404 or model not found, continue to next candidate
+        continue;
+      }
+
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      if (!text) {
+        lastError = 'Empty response from AI service.';
+        continue;
+      }
+
+      return text;
+    } catch (err: any) {
+      console.error(`Network error calling ${targetEndpoint}:`, err);
+      lastError = err?.message || lastError;
     }
-    throw new Error(detail);
   }
 
-  const data = await res.json();
-
-  // Gemini response shape: { candidates: [{ content: { parts: [{ text }] } }] }
-  const text =
-    data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-  if (!text) {
-    throw new Error('Empty response from AI service.');
-  }
-
-  return text;
+  throw new Error(lastError);
 }
